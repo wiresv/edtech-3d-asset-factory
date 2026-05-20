@@ -104,7 +104,7 @@ export default function Workshop() {
   return (
     <div className="grid h-full min-h-0 grid-cols-1 gap-4 lg:grid-cols-[380px_minmax(0,1fr)]">
       <aside className="flex min-h-0 flex-col gap-4 overflow-hidden">
-        <Card className="flex flex-col">
+        <Card className="flex min-h-0 flex-1 flex-col">
           <div className="flex items-center justify-between">
             <PillBadge tone="purple" icon={<Sparkles />}>
               Prompt
@@ -121,7 +121,7 @@ export default function Workshop() {
               }
             }}
             placeholder="A stylized chloroplast with prominent thylakoid stacks, soft conceptual shading…"
-            className="mt-3 min-h-[110px] w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-3 text-[13.5px] leading-relaxed text-ink placeholder:text-muted-2 focus:border-ink focus:outline-none focus:ring-0"
+            className="mt-3 min-h-[110px] w-full flex-1 resize-none rounded-xl border border-line bg-paper px-3.5 py-3 text-[13.5px] leading-relaxed text-ink placeholder:text-muted-2 focus:border-ink focus:outline-none focus:ring-0"
           />
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <button
@@ -148,7 +148,7 @@ export default function Workshop() {
           </div>
         </Card>
 
-        <Card padded={false} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <Card padded={false} className="flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-5 pt-4">
             <PillBadge tone="blue" icon={<ImageIcon />}>
               Concept
@@ -157,7 +157,7 @@ export default function Workshop() {
               <span className="text-[11px] font-medium text-muted-2">1024×1024</span>
             )}
           </div>
-          <div className="relative mx-5 mb-5 mt-3 flex-1 overflow-hidden rounded-xl border border-line bg-surface">
+          <div className="relative mx-5 mb-5 mt-3 aspect-square overflow-hidden rounded-xl border border-line bg-surface">
             {imageReady && s.imageUrl ? (
               <img
                 src={s.imageUrl}
