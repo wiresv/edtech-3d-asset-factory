@@ -81,6 +81,10 @@ class _SPAHandler(http.server.SimpleHTTPRequestHandler):
         url = urlsplit(self.path)
         path = url.path
 
+        if path == "/api/health":
+            self._write_json(200, {"ok": True})
+            return
+
         if path == "/api/initial":
             self._write_json(200, _find_initial_run(self.runs_root))
             return

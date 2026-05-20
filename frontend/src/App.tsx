@@ -1,4 +1,30 @@
+import { useEffect, useState } from "react";
 import Workshop from "./views/Workshop";
+
+function useHealth(intervalMs = 15000): boolean {
+  const [ok, setOk] = useState(true);
+  useEffect(() => {
+    let cancelled = false;
+    const check = async () => {
+      try {
+        const ctl = new AbortController();
+        const timeout = window.setTimeout(() => ctl.abort(), 3000);
+        const r = await fetch("/api/health", { signal: ctl.signal, cache: "no-store" });
+        window.clearTimeout(timeout);
+        if (!cancelled) setOk(r.ok);
+      } catch {
+        if (!cancelled) setOk(false);
+      }
+    };
+    check();
+    const handle = window.setInterval(check, intervalMs);
+    return () => {
+      cancelled = true;
+      window.clearInterval(handle);
+    };
+  }, [intervalMs]);
+  return ok;
+}
 
 export default function App() {
   return (
@@ -12,6 +38,7 @@ export default function App() {
 }
 
 function Header() {
+  const connected = useHealth();
   return (
     <header className="mx-auto flex w-full max-w-[1480px] shrink-0 items-center justify-between px-6 pt-5 pb-4">
       <div className="flex items-center gap-2.5">
@@ -26,8 +53,13 @@ function Header() {
         </div>
       </div>
       <div className="flex items-center gap-2 text-[12px] text-muted">
-        <span className="inline-flex h-2 w-2 rounded-full bg-accent-green" />
-        <span>Connected</span>
+        <span
+          className={
+            "inline-flex h-2 w-2 rounded-full " +
+            (connected ? "bg-accent-green" : "bg-accent-red")
+          }
+        />
+        <span>{connected ? "Connected" : "Disconnected"}</span>
       </div>
     </header>
   );
