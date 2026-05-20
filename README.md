@@ -10,6 +10,113 @@ Pipeline: `asset.yaml` → OpenAI concept image → TRELLIS.2 image-to-3D → op
 
 Click the GIF to open the original X post.
 
+## Fresh-server install
+
+End-to-end from a bare Ubuntu host with an NVIDIA GPU to the workshop showing a green "Connected" indicator. The sections below this one are reference detail for each piece — this section is the linear path.
+
+**Prerequisites**
+
+- Ubuntu 22.04+ host with an NVIDIA GPU (≥16 GB VRAM; verified on RTX 5080 / sm_120 Blackwell)
+- ~80 GB free disk (~37 GB Docker image + ~35 GB HuggingFace weights)
+- OpenAI API key with image generation access
+
+### 1. System packages
+
+```bash
+sudo apt update && sudo apt install -y \
+  git python3.11 python3.11-venv python3-pip nodejs npm docker.io
+```
+
+Install the NVIDIA Container Toolkit so Docker can see the GPU:
+
+```bash
+curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey \
+  | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+curl -fsSL https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list \
+  | sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#' \
+  | sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+sudo apt update && sudo apt install -y nvidia-container-toolkit
+sudo nvidia-ctk runtime configure --runtime=docker && sudo systemctl restart docker
+```
+
+Verify: `docker run --rm --gpus all nvidia/cuda:12.8.1-base-ubuntu22.04 nvidia-smi` lists your GPU.
+
+### 2. Clone and install
+
+```bash
+git clone https://github.com/PSkinnerTech/edtech-3d-asset-factory.git
+cd edtech-3d-asset-factory
+python3.11 -m venv .venv
+.venv/bin/pip install -e ".[dev]"
+.venv/bin/pytest -q          # sanity check
+```
+
+### 3. Build the frontend bundle
+
+The workshop endpoint serves the prebuilt SPA from `frontend/dist/` — it 503s without this step.
+
+```bash
+( cd frontend && npm install && npm run build )
+```
+
+### 4. Build the TRELLIS Docker image
+
+```bash
+git clone https://github.com/wiresv/trellis2-runner.git
+( cd trellis2-runner && docker build -t trellis2:blackwell . )
+```
+
+First build is ~20 min (compiles flash-attn / nvdiffrast / FlexGEMM against CUDA 12.8); resulting image is ~37 GB.
+
+### 5. Download model weights (one-time, ~35 GB)
+
+The runtime docker command uses `HF_HUB_OFFLINE=1` for speed and reproducibility, so weights must exist in `~/.cache/huggingface` before the first run. Both repos are required:
+
+```bash
+.venv/bin/pip install huggingface_hub
+.venv/bin/huggingface-cli download microsoft/TRELLIS.2-4B
+.venv/bin/huggingface-cli download microsoft/TRELLIS-image-large
+```
+
+### 6. Persist secrets
+
+Stash the OpenAI key in a private file (mode 600) so launches don't need it re-exported:
+
+```bash
+sudo install -d -m 700 /root/.config/asset-factory
+echo 'OPENAI_API_KEY=sk-…' | sudo tee /root/.config/asset-factory/env >/dev/null
+sudo chmod 600 /root/.config/asset-factory/env
+```
+
+### 7. Launch the workshop (tmux for persistence)
+
+```bash
+sudo mkdir -p /var/log/asset-factory
+tmux new -s workshop
+# inside the tmux pane:
+set -a && . /root/.config/asset-factory/env && set +a
+export TRELLIS2_COMMAND='docker run --rm --gpus all \
+  -e HF_HUB_OFFLINE=1 -e FLEX_GEMM_AUTOSAVE_AUTOTUNE_CACHE=0 \
+  -v /root/.cache/huggingface:/root/.cache/huggingface \
+  -v {image}:/work/concept.png:ro \
+  -v {output}:/work/output \
+  trellis2:blackwell /work/concept.png /work/output {resolution}'
+.venv/bin/asset-factory workshop --port 8765 2>&1 | tee -a /var/log/asset-factory/workshop.log
+```
+
+Detach with `Ctrl-b d`. The workshop binds to `127.0.0.1:8765` only — visit it locally, SSH-forward, or expose via reverse proxy. Header dot should be green.
+
+### 8. (Optional) Public access
+
+The workshop is intentionally localhost-only. Front it with whatever you already use; the live deploy uses Caddy + a Cloudflare Tunnel. Minimal Caddyfile site block:
+
+```caddyfile
+3d.example.com {
+    reverse_proxy 127.0.0.1:8765
+    encode gzip zstd
+}
+```
+
 ## Development
 
 ```bash
