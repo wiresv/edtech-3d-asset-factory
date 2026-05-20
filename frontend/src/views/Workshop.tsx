@@ -138,8 +138,8 @@ export default function Workshop() {
       busy: "model",
       status: {
         text: fast
-          ? "Running TRELLIS (fast preset) on the GPU — usually 20–40s…"
-          : "Running TRELLIS on the GPU — usually 1–2 min…",
+          ? "Running TRELLIS (draft preset) on the GPU — usually under a minute…"
+          : "Running TRELLIS (quality preset) on the GPU — usually 1–2 min…",
         tone: "busy",
       },
     }));
@@ -202,29 +202,53 @@ export default function Workshop() {
               {s.busy === "model" ? <Spinner /> : <CubeIcon />}
               {s.busy === "model" ? "Building" : "Build 3D"}
             </button>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={s.fast}
-              onClick={() => setS((p) => ({ ...p, fast: !p.fast }))}
-              disabled={s.busy !== "none"}
-              title={
-                s.fast
-                  ? "Fast preset: lower-res mesh + texture, ~20–40s"
-                  : "Quality preset: full mesh + texture, ~1–2 min"
-              }
-              className={
-                "inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-[12px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 " +
-                (s.fast
-                  ? "border-accent-amber bg-accent-amber/10 text-accent-amber"
-                  : "border-line bg-card text-muted hover:border-ink hover:text-ink")
-              }
+            <div
+              role="radiogroup"
+              aria-label="3D generation quality preset"
+              className="inline-flex h-8 overflow-hidden rounded-lg border border-line bg-card text-[12px] font-medium"
             >
-              <BoltIcon />
-              Fast
-            </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={!s.fast}
+                onClick={() => setS((p) => ({ ...p, fast: false }))}
+                disabled={s.busy !== "none"}
+                title="Full quality — sharper mesh and texture, ~1–2 min"
+                className={
+                  "inline-flex items-center gap-1.5 px-2.5 transition-colors disabled:cursor-not-allowed disabled:opacity-40 " +
+                  (!s.fast
+                    ? "bg-ink text-paper"
+                    : "text-muted hover:bg-surface hover:text-ink")
+                }
+              >
+                <DiamondIcon />
+                Quality
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={s.fast}
+                onClick={() => setS((p) => ({ ...p, fast: true }))}
+                disabled={s.busy !== "none"}
+                title="Draft — faster but visibly rougher; coarser mesh, lower-res texture"
+                className={
+                  "inline-flex items-center gap-1.5 border-l border-line px-2.5 transition-colors disabled:cursor-not-allowed disabled:opacity-40 " +
+                  (s.fast
+                    ? "bg-accent-amber text-paper"
+                    : "text-muted hover:bg-surface hover:text-ink")
+                }
+              >
+                <BoltIcon />
+                Draft
+              </button>
+            </div>
           </div>
-          <div className="mt-2.5 min-h-[18px]">
+          <div className="mt-1.5 text-[11px] text-muted-2">
+            {s.fast
+              ? "Draft preset · faster generation, lower-fidelity mesh + texture"
+              : "Quality preset · sharper mesh + texture, longer wait"}
+          </div>
+          <div className="mt-2 min-h-[18px]">
             <StatusLine
               text={
                 s.busy !== "none" && elapsed > 0
@@ -375,6 +399,14 @@ function BoltIcon() {
   return (
     <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
       <path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z" />
+    </svg>
+  );
+}
+
+function DiamondIcon() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M12 2l10 10-10 10L2 12z" />
     </svg>
   );
 }
