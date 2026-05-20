@@ -28,6 +28,7 @@ export interface SeedPrompt {
   subject: "biology" | "physics" | "earth_science";
   style: "conceptual" | "realistic";
   prompt: string;
+  cached: boolean;
 }
 
 async function postJSON<T>(url: string, body: unknown): Promise<T> {
@@ -52,6 +53,8 @@ async function getJSON<T>(url: string): Promise<T | null> {
 export const api = {
   getInitial: () => getJSON<InitialRun>("/api/initial"),
   getSeedPrompts: () => getJSON<SeedPrompt[]>("/api/seed-prompts"),
+  getSeedImage: (id: string) =>
+    getJSON<ImageResponse>("/api/seed-image?id=" + encodeURIComponent(id)),
   getReview: (run?: string | null) =>
     getJSON<ReviewData>("/api/review" + (run ? `?run=${encodeURIComponent(run)}` : "")),
   postImage: (prompt: string) =>

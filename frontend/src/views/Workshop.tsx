@@ -103,6 +103,37 @@ export default function Workshop() {
     }
   }
 
+  async function onSeedClick(seed: SeedPrompt) {
+    if (!seed.cached) {
+      setS((p) => ({
+        ...p,
+        prompt: seed.prompt,
+        status: { text: "Loaded prompt. Click Generate image.", tone: "idle" },
+      }));
+      return;
+    }
+    setS((p) => ({
+      ...p,
+      prompt: seed.prompt,
+      busy: "image",
+      status: { text: "Loading cached concept…", tone: "busy" },
+    }));
+    try {
+      const r = await api.getSeedImage(seed.id);
+      if (!r) throw new Error("cache missing");
+      setS((p) => ({
+        ...p,
+        busy: "none",
+        currentRunId: r.run_id,
+        imageUrl: r.image_url + "?t=" + Date.now(),
+        status: { text: "Cached concept ready. Approve to build the 3D model.", tone: "ok" },
+      }));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setS((p) => ({ ...p, busy: "none", status: { text: `Cache failed: ${msg}`, tone: "error" } }));
+    }
+  }
+
   async function onApprove() {
     if (!s.currentRunId) return;
     setS((p) => ({
@@ -183,9 +214,9 @@ export default function Workshop() {
                   <button
                     key={seed.id}
                     type="button"
-                    onClick={() => setS((p) => ({ ...p, prompt: seed.prompt }))}
+                    onClick={() => onSeedClick(seed)}
                     disabled={genDisabled}
-                    title={seed.label}
+                    title={seed.cached ? `${seed.label} (cached — instant)` : seed.label}
                     className="group inline-flex items-center gap-1.5 rounded-pill border border-line bg-card px-2.5 py-1 text-[11.5px] font-medium text-muted transition-all hover:border-ink hover:bg-surface hover:text-ink hover:shadow-card disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-line disabled:hover:bg-card disabled:hover:text-muted disabled:hover:shadow-none"
                   >
                     <span

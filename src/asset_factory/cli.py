@@ -253,6 +253,30 @@ def workshop(
     serve_workshop(root, port=port)
 
 
+@app.command()
+def precache_seeds(
+    seeds_dir: Annotated[Path, typer.Option()] = Path("assets/seeds"),
+    force: Annotated[bool, typer.Option()] = False,
+) -> None:
+    """Pre-generate concept images for every seed spec into <seeds_dir>/cache/<id>.png."""
+    from asset_factory.prompts import build_image_prompt
+
+    cache_dir = seeds_dir / "cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    generator = OpenAIImageGenerator()
+    yaml_paths = sorted(seeds_dir.glob("*.yaml"))
+    for path in yaml_paths:
+        spec = load_asset_spec(path)
+        png = cache_dir / f"{spec.id}.png"
+        prompt_path = cache_dir / f"{spec.id}.txt"
+        if png.exists() and prompt_path.exists() and not force:
+            typer.echo(f"skip  {spec.id}")
+            continue
+        typer.echo(f"cache {spec.id} …")
+        generator.generate(build_image_prompt(spec), png, prompt_path)
+        typer.echo(f"done  {spec.id}")
+
+
 def _spec_from_manifest(run_dir: Path, manifest_path: Path) -> AssetSpec:
     manifest = read_manifest(manifest_path)
     copied_spec = run_dir / "input" / "asset.yaml"

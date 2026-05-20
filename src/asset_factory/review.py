@@ -8,16 +8,17 @@ from urllib.parse import parse_qs, urlsplit
 
 FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 SEEDS_DIR = Path(__file__).resolve().parents[2] / "assets" / "seeds"
+SEEDS_CACHE_DIR = SEEDS_DIR / "cache"
 SPA_ROUTES = frozenset({"/", "/workshop", "/workshop.html", "/review", "/review.html"})
 
 
-def _list_seed_prompts() -> list[dict[str, str]]:
+def _list_seed_prompts() -> list[dict[str, object]]:
     from asset_factory.prompts import build_image_prompt
     from asset_factory.specs import load_asset_spec
 
     if not SEEDS_DIR.is_dir():
         return []
-    items: list[dict[str, str]] = []
+    items: list[dict[str, object]] = []
     for path in sorted(SEEDS_DIR.glob("*.yaml")):
         spec = load_asset_spec(path)
         label = spec.object[:1].upper() + spec.object[1:]
@@ -28,9 +29,20 @@ def _list_seed_prompts() -> list[dict[str, str]]:
                 "subject": spec.subject.value,
                 "style": spec.style.value,
                 "prompt": build_image_prompt(spec),
+                "cached": (SEEDS_CACHE_DIR / f"{spec.id}.png").is_file(),
             }
         )
     return items
+
+
+def _load_seed_spec(seed_id: str):
+    from asset_factory.specs import load_asset_spec
+
+    for path in SEEDS_DIR.glob("*.yaml"):
+        spec = load_asset_spec(path)
+        if spec.id == seed_id:
+            return spec
+    return None
 
 
 class ReviewHTTPServer(http.server.ThreadingHTTPServer):
@@ -163,6 +175,15 @@ class _SPAHandler(http.server.SimpleHTTPRequestHandler):
             self._write_json(200, _list_seed_prompts())
             return
 
+        if path == "/api/seed-image":
+            try:
+                self._write_json(200, self._materialize_seed(parse_qs(url.query)))
+            except FileNotFoundError as exc:
+                self._write_json(404, {"error": str(exc)})
+            except Exception as exc:  # noqa: BLE001
+                self._write_json(500, {"error": str(exc)})
+            return
+
         if path == "/api/review":
             if self.single_run:
                 data = _read_review_for(self.runs_root, url_prefix="")
@@ -211,6 +232,26 @@ class _SPAHandler(http.server.SimpleHTTPRequestHandler):
             self._write_json(500, {"error": str(exc)})
             return
         self._write_json(200, result)
+
+    def _materialize_seed(self, query: dict[str, list[str]]) -> dict:
+        from datetime import UTC, datetime
+        import shutil
+
+        seed_id = (query.get("id") or [""])[0]
+        if not seed_id:
+            raise FileNotFoundError("missing id")
+        cache_png = SEEDS_CACHE_DIR / f"{seed_id}.png"
+        cache_prompt = SEEDS_CACHE_DIR / f"{seed_id}.txt"
+        if not cache_png.is_file():
+            raise FileNotFoundError(f"no cached image for {seed_id}")
+        run_id = datetime.now(tz=UTC).strftime("%Y%m%dT%H%M%S_%fZ")
+        run_dir = self.runs_root / "workshop" / run_id
+        image_dir = run_dir / "image"
+        image_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(cache_png, image_dir / "concept.png")
+        if cache_prompt.is_file():
+            shutil.copy2(cache_prompt, image_dir / "prompt.txt")
+        return {"run_id": run_id, "image_url": f"/workshop/{run_id}/image/concept.png"}
 
     def _gen_image(self, prompt: str) -> dict:
         from datetime import UTC, datetime
