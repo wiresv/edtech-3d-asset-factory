@@ -163,7 +163,8 @@ def test_export_does_not_complete_or_later_advertise_near_complete_profile_dirs(
 def test_qa_failure_clears_advertised_exports(tmp_path: Path):
     runner, run_dir = generate_run(tmp_path)
     review_html_path = run_dir / "reports" / "review.html"
-    assert "QA Passed" in review_html_path.read_text(encoding="utf-8")
+    expected_target = f"/review?run={run_dir.parent.name}/{run_dir.name}"
+    assert expected_target in review_html_path.read_text(encoding="utf-8")
     set_copied_spec_max_triangles(run_dir, 1)
 
     qa_result = runner.invoke(app, ["qa", str(run_dir)])
@@ -172,12 +173,12 @@ def test_qa_failure_clears_advertised_exports(tmp_path: Path):
     assert "QA passed: False" in qa_result.output
     root_manifest = read_json(run_dir / "manifest.json")
     qa_report = read_json(run_dir / "reports" / "qa.json")
-    review_html = review_html_path.read_text(encoding="utf-8")
     assert root_manifest["qa"]["passed"] is False
     assert root_manifest["files"]["exports"] == {}
     assert qa_report["passed"] is False
-    assert "QA Needs review" in review_html
-    assert "Triangle count" in review_html
+    assert expected_target in review_html_path.read_text(encoding="utf-8")
+    qa_messages = [*qa_report.get("blocking_failures", []), *qa_report.get("warnings", [])]
+    assert any("Triangle count" in m for m in qa_messages)
     assert not (run_dir / "exports" / "web").exists()
 
 

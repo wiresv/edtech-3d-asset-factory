@@ -1,0 +1,20 @@
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    port: 5173,
+    strictPort: true,
+    proxy: {
+      "/api": "http://127.0.0.1:8765",
+      "^/[^/]+/\\d{8}T\\d{6}.*": "http://127.0.0.1:8765",
+      "^/workshop/.*": "http://127.0.0.1:8765",
+    },
+  },
+  build: {
+    outDir: "dist",
+    emptyOutDir: true,
+    assetsDir: "assets",
+  },
+});
