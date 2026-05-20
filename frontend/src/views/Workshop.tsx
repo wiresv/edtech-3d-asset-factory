@@ -104,23 +104,14 @@ export default function Workshop() {
   }
 
   async function onSeedClick(seed: SeedPrompt) {
-    if (!seed.cached) {
-      setS((p) => ({
-        ...p,
-        prompt: seed.prompt,
-        status: { text: "Loaded prompt. Click Generate image.", tone: "idle" },
-      }));
-      return;
-    }
     setS((p) => ({
       ...p,
       prompt: seed.prompt,
       busy: "image",
       status: { text: "Loading cached concept…", tone: "busy" },
     }));
-    try {
-      const r = await api.getSeedImage(seed.id);
-      if (!r) throw new Error("cache missing");
+    const r = await api.getSeedImage(seed.id).catch(() => null);
+    if (r) {
       setS((p) => ({
         ...p,
         busy: "none",
@@ -128,10 +119,13 @@ export default function Workshop() {
         imageUrl: r.image_url + "?t=" + Date.now(),
         status: { text: "Cached concept ready. Approve to build the 3D model.", tone: "ok" },
       }));
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setS((p) => ({ ...p, busy: "none", status: { text: `Cache failed: ${msg}`, tone: "error" } }));
+      return;
     }
+    setS((p) => ({
+      ...p,
+      busy: "none",
+      status: { text: "Prompt loaded. Click Generate image.", tone: "idle" },
+    }));
   }
 
   async function onApprove() {
@@ -162,7 +156,7 @@ export default function Workshop() {
   return (
     <div className="grid h-full min-h-0 grid-cols-1 gap-4 lg:grid-cols-[380px_minmax(0,1fr)]">
       <aside className="flex min-h-0 flex-col gap-4 overflow-hidden">
-        <Card className="flex min-h-0 flex-1 flex-col">
+        <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="flex items-center justify-between">
             <PillBadge tone="purple" icon={<Sparkles />}>
               Prompt
@@ -179,7 +173,7 @@ export default function Workshop() {
               }
             }}
             placeholder="A stylized chloroplast with prominent thylakoid stacks, soft conceptual shading…"
-            className="mt-3 min-h-[110px] w-full flex-1 resize-none rounded-xl border border-line bg-paper px-3.5 py-3 text-[13.5px] leading-relaxed text-ink placeholder:text-muted-2 focus:border-ink focus:outline-none focus:ring-0"
+            className="mt-3 min-h-[80px] w-full flex-1 resize-none rounded-xl border border-line bg-paper px-3.5 py-3 text-[13.5px] leading-relaxed text-ink placeholder:text-muted-2 focus:border-ink focus:outline-none focus:ring-0"
           />
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <button
@@ -200,6 +194,16 @@ export default function Workshop() {
               {s.busy === "model" ? <Spinner /> : <CubeIcon />}
               {s.busy === "model" ? "Building" : "Build 3D"}
             </button>
+          </div>
+          <div className="mt-2.5 min-h-[18px]">
+            <StatusLine
+              text={
+                s.busy !== "none" && elapsed > 0
+                  ? `${s.status.text} (${elapsed}s)`
+                  : s.status.text
+              }
+              tone={s.status.tone}
+            />
           </div>
           {seeds.length > 0 && (
             <div className="mt-4 border-t border-line-2 pt-3">
@@ -231,16 +235,6 @@ export default function Workshop() {
               </div>
             </div>
           )}
-          <div className="mt-2.5">
-            <StatusLine
-              text={
-                s.busy !== "none" && elapsed > 0
-                  ? `${s.status.text} (${elapsed}s)`
-                  : s.status.text
-              }
-              tone={s.status.tone}
-            />
-          </div>
         </Card>
 
         <Card padded={false} className="flex flex-col overflow-hidden">
