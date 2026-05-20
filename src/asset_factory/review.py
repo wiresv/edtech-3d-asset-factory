@@ -7,7 +7,30 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
 FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+SEEDS_DIR = Path(__file__).resolve().parents[2] / "assets" / "seeds"
 SPA_ROUTES = frozenset({"/", "/workshop", "/workshop.html", "/review", "/review.html"})
+
+
+def _list_seed_prompts() -> list[dict[str, str]]:
+    from asset_factory.prompts import build_image_prompt
+    from asset_factory.specs import load_asset_spec
+
+    if not SEEDS_DIR.is_dir():
+        return []
+    items: list[dict[str, str]] = []
+    for path in sorted(SEEDS_DIR.glob("*.yaml")):
+        spec = load_asset_spec(path)
+        label = spec.object[:1].upper() + spec.object[1:]
+        items.append(
+            {
+                "id": spec.id,
+                "label": label,
+                "subject": spec.subject.value,
+                "style": spec.style.value,
+                "prompt": build_image_prompt(spec),
+            }
+        )
+    return items
 
 
 class ReviewHTTPServer(http.server.ThreadingHTTPServer):
@@ -134,6 +157,10 @@ class _SPAHandler(http.server.SimpleHTTPRequestHandler):
         if path == "/api/initial":
             initial = None if self.single_run else _find_initial_run(self.runs_root)
             self._write_json(200, initial)
+            return
+
+        if path == "/api/seed-prompts":
+            self._write_json(200, _list_seed_prompts())
             return
 
         if path == "/api/review":

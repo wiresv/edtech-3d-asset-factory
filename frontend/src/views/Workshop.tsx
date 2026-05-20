@@ -3,7 +3,13 @@ import Card from "../components/Card";
 import PillBadge from "../components/PillBadge";
 import StatusLine, { type StatusTone } from "../components/StatusLine";
 import ModelViewer, { type ModelViewerHandle } from "../components/ModelViewer";
-import { api } from "../api";
+import { api, type SeedPrompt } from "../api";
+
+const SUBJECT_DOT: Record<SeedPrompt["subject"], string> = {
+  biology: "bg-accent-green",
+  physics: "bg-accent-blue",
+  earth_science: "bg-accent-amber",
+};
 
 interface State {
   prompt: string;
@@ -25,6 +31,7 @@ const initialState: State = {
 
 export default function Workshop() {
   const [s, setS] = useState<State>(initialState);
+  const [seeds, setSeeds] = useState<SeedPrompt[]>([]);
   const viewerRef = useRef<ModelViewerHandle>(null);
 
   useEffect(() => {
@@ -39,6 +46,13 @@ export default function Workshop() {
           imageUrl: r.image_url,
           initialGlbUrl: r.glb_url,
         }));
+      })
+      .catch(() => {});
+    api
+      .getSeedPrompts()
+      .then((rows) => {
+        if (cancelled || !rows) return;
+        setSeeds(rows);
       })
       .catch(() => {});
     return () => {
@@ -143,6 +157,36 @@ export default function Workshop() {
               {s.busy === "model" ? "Building" : "Build 3D"}
             </button>
           </div>
+          {seeds.length > 0 && (
+            <div className="mt-4 border-t border-line-2 pt-3">
+              <div className="mb-2 flex items-baseline justify-between">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-2">
+                  Try one
+                </span>
+                <span className="text-[10px] text-muted-2">{seeds.length} examples</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {seeds.map((seed) => (
+                  <button
+                    key={seed.id}
+                    type="button"
+                    onClick={() => setS((p) => ({ ...p, prompt: seed.prompt }))}
+                    disabled={genDisabled}
+                    title={seed.label}
+                    className="group inline-flex items-center gap-1.5 rounded-pill border border-line bg-card px-2.5 py-1 text-[11.5px] font-medium text-muted transition-all hover:border-ink hover:bg-surface hover:text-ink hover:shadow-card disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-line disabled:hover:bg-card disabled:hover:text-muted disabled:hover:shadow-none"
+                  >
+                    <span
+                      className={
+                        "h-1.5 w-1.5 rounded-full transition-transform group-hover:scale-125 " +
+                        SUBJECT_DOT[seed.subject]
+                      }
+                    />
+                    {seed.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="mt-2.5">
             <StatusLine text={s.status.text} tone={s.status.tone} />
           </div>

@@ -22,6 +22,14 @@ export interface Run3dResponse {
   glb_url: string;
 }
 
+export interface SeedPrompt {
+  id: string;
+  label: string;
+  subject: "biology" | "physics" | "earth_science";
+  style: "conceptual" | "realistic";
+  prompt: string;
+}
+
 async function postJSON<T>(url: string, body: unknown): Promise<T> {
   const r = await fetch(url, {
     method: "POST",
@@ -43,6 +51,7 @@ async function getJSON<T>(url: string): Promise<T | null> {
 
 export const api = {
   getInitial: () => getJSON<InitialRun>("/api/initial"),
+  getSeedPrompts: () => getJSON<SeedPrompt[]>("/api/seed-prompts"),
   getReview: (run?: string | null) =>
     getJSON<ReviewData>("/api/review" + (run ? `?run=${encodeURIComponent(run)}` : "")),
   postImage: (prompt: string) =>
