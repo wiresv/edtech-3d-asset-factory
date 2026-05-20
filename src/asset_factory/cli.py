@@ -14,8 +14,9 @@ from asset_factory.exports import export_profiles
 from asset_factory.images import OpenAIImageGenerator
 from asset_factory.manifest import read_manifest, write_manifest, write_package_manifest
 from asset_factory.models import AssetManifest, AssetSpec, ExportProfile, QaThresholds
-from asset_factory.pipeline import generate_asset
+from asset_factory.pipeline import finalize_asset, generate_asset, prepare_asset
 from asset_factory.qa import run_qa
+from asset_factory.runners.base import RunnerRequest
 from asset_factory.runners.mock import MockRunner
 from asset_factory.specs import load_asset_spec
 
@@ -86,6 +87,59 @@ def generate(
         runner=asset_runner,
     )
     typer.echo(f"Generated run: {result.run_dir}")
+
+
+@app.command()
+def batch(
+    spec_paths: list[Path],
+    root_dir: Annotated[Path, typer.Option()] = Path("."),
+    runner: Annotated[str, typer.Option()] = "trellis",
+) -> None:
+    """Generate multiple specs over one warm TRELLIS subprocess (no per-asset model reload)."""
+    if not spec_paths:
+        raise typer.BadParameter("at least one spec path required", param_hint="spec_paths")
+    specs = [load_asset_spec(path) for path in spec_paths]
+
+    if runner == "mock":
+        image_generator = _LocalConceptImageGenerator()
+        prepared = [
+            prepare_asset(spec=spec, root_dir=root_dir, image_generator=image_generator)
+            for spec in specs
+        ]
+        mock = MockRunner()
+        for prep in prepared:
+            result = mock.run(
+                RunnerRequest(
+                    concept_image=prep.generated_image.image_path,
+                    output_dir=prep.layout.trellis_dir,
+                    resolution=1024,
+                )
+            )
+            final = finalize_asset(prep, result)
+            typer.echo(f"Generated run: {final.run_dir}")
+        return
+
+    if runner != "trellis":
+        raise typer.BadParameter("runner must be mock or trellis", param_hint="runner")
+
+    from asset_factory.runners.trellis import BatchTrellisCommandRunner
+
+    image_generator = OpenAIImageGenerator()
+    prepared = [
+        prepare_asset(spec=spec, root_dir=root_dir, image_generator=image_generator)
+        for spec in specs
+    ]
+    with BatchTrellisCommandRunner.from_env() as batch_runner:
+        for prep in prepared:
+            result = batch_runner.run(
+                RunnerRequest(
+                    concept_image=prep.generated_image.image_path,
+                    output_dir=prep.layout.trellis_dir,
+                    resolution=1024,
+                )
+            )
+            final = finalize_asset(prep, result)
+            typer.echo(f"Generated run: {final.run_dir}")
 
 
 @app.command()

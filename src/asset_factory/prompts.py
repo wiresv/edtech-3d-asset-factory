@@ -7,7 +7,9 @@ def build_image_prompt(spec: AssetSpec) -> str:
     base = (
         f"Create a single isolated {spec.object} as an educational science object for "
         f"grade band {spec.grade_band}. Learning goal: {spec.learning_goal} "
-        "Use a plain neutral background, centered composition, full object visible, "
+        "Pure white #ffffff background, subject centered and occupying 70-80% of the frame, "
+        "three-quarter view showing depth, soft even ambient lighting with no cast shadows "
+        "and no ground plane, full object visible, "
         "no labels, no arrows, no text, no watermark, no surrounding scene. "
         "The image must be suitable as a source image for image-to-3D asset generation."
     )

@@ -5,7 +5,28 @@ from pathlib import Path
 import pytest
 
 from asset_factory.runners.base import RunnerRequest
-from asset_factory.runners.trellis import TrellisCommandRunner
+from asset_factory.runners.trellis import BatchTrellisCommandRunner, TrellisCommandRunner
+
+
+_FAKE_BATCH_SCRIPT = """
+import sys
+from pathlib import Path
+
+print("READY", flush=True)
+for line in sys.stdin:
+    line = line.rstrip("\\n")
+    if not line:
+        continue
+    image_str, output_str = line.split("\\t", 1)
+    out = Path(output_str)
+    if image_str.endswith("FAIL.png"):
+        print(f"ERR\\t{output_str}\\tFakeError: simulated", flush=True)
+        continue
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "raw.glb").write_bytes(b"glTF-fake-batch")
+    print(f"verbose: processed {image_str}", flush=True)
+    print(f"OK\\t{output_str}", flush=True)
+"""
 
 
 def test_trellis_runner_requires_env(monkeypatch):
@@ -234,6 +255,68 @@ print("ok but no asset")
     assert report["error_type"] == "MissingRawGlbError"
     assert "raw.glb" in report["error_message"]
     assert report["stdout"] == "ok but no asset\n"
+
+
+def test_batch_runner_requires_env(monkeypatch):
+    monkeypatch.delenv("TRELLIS2_BATCH_COMMAND", raising=False)
+    with pytest.raises(RuntimeError, match="TRELLIS2_BATCH_COMMAND"):
+        BatchTrellisCommandRunner.from_env()
+
+
+def test_batch_runner_serves_multiple_requests(tmp_path: Path, monkeypatch):
+    script = tmp_path / "fake_batch.py"
+    script.write_text(_FAKE_BATCH_SCRIPT, encoding="utf-8")
+    monkeypatch.setenv("TRELLIS2_BATCH_COMMAND", f"{sys.executable} {script}")
+
+    images = []
+    for name in ("a.png", "b.png"):
+        image = tmp_path / name
+        image.write_bytes(b"png")
+        images.append(image)
+
+    with BatchTrellisCommandRunner.from_env() as runner:
+        for index, image in enumerate(images):
+            output_dir = tmp_path / f"out_{index}"
+            result = runner.run(RunnerRequest(concept_image=image, output_dir=output_dir))
+            assert result.success is True
+            assert result.raw_glb_path.read_bytes() == b"glTF-fake-batch"
+            assert result.runner_type == "trellis-batch"
+            report = json.loads(result.report_path.read_text(encoding="utf-8"))
+            assert report["success"] is True
+            assert "verbose: processed" in report["stdout"]
+
+
+def test_batch_runner_reports_per_asset_errors(tmp_path: Path, monkeypatch):
+    script = tmp_path / "fake_batch.py"
+    script.write_text(_FAKE_BATCH_SCRIPT, encoding="utf-8")
+    monkeypatch.setenv("TRELLIS2_BATCH_COMMAND", f"{sys.executable} {script}")
+
+    good_image = tmp_path / "good.png"
+    good_image.write_bytes(b"png")
+    bad_image = tmp_path / "FAIL.png"
+    bad_image.write_bytes(b"png")
+
+    with BatchTrellisCommandRunner.from_env() as runner:
+        good_result = runner.run(
+            RunnerRequest(concept_image=good_image, output_dir=tmp_path / "good")
+        )
+        assert good_result.success is True
+
+        with pytest.raises(RuntimeError, match="TRELLIS batch command failed"):
+            runner.run(RunnerRequest(concept_image=bad_image, output_dir=tmp_path / "bad"))
+
+    bad_report = json.loads((tmp_path / "bad" / "raw_report.json").read_text(encoding="utf-8"))
+    assert bad_report["success"] is False
+    assert bad_report["error_type"] == "BatchAssetError"
+    assert "FakeError" in bad_report["error_message"]
+
+
+def test_batch_runner_rejects_use_outside_context(tmp_path: Path):
+    runner = BatchTrellisCommandRunner(command_template="true")
+    image = tmp_path / "concept.png"
+    image.write_bytes(b"png")
+    with pytest.raises(RuntimeError, match="outside its context manager"):
+        runner.run(RunnerRequest(concept_image=image, output_dir=tmp_path / "trellis"))
 
 
 def test_trellis_runner_writes_failure_report_for_nonzero_return_code(tmp_path: Path, monkeypatch):

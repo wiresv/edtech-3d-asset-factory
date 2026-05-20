@@ -9,13 +9,14 @@ inference fits in 16 GB of VRAM at 1024 resolution.
 - **Image:** `trellis2:blackwell` builds clean (see `tmux attach -t build` if
   rebuilding). All from-source CUDA extensions compile for sm_120 under
   CUDA 12.8 / PyTorch 2.7.0+cu128.
-- **Attention backend:** xformers (flash-attn TODO note in the Dockerfile).
+- **Attention backend:** flash-attn 2.8.3 for the main pipeline (Dockerfile:57-58
+  installs the Blackwell wheel); xformers stays for TRELLIS's sparse-conv path.
 - **Transformers:** pinned `<5` because `briaai/RMBG-2.0`'s `birefnet.py`
   expects the pre-5.x `_tied_weights_keys` API.
 - **Pipeline runner:** `src/asset_factory/runners/trellis.py` now resolves
   paths to absolute before substituting into `TRELLIS2_COMMAND` (docker
   bind-mounts reject relative paths).
-- **TRELLIS2_COMMAND template** that works:
+- **TRELLIS2_COMMAND template** (single-shot, one `docker run` per asset):
   ```
   docker run --rm --gpus all -e HF_HUB_OFFLINE=1 \
     -v /root/.cache/huggingface:/root/.cache/huggingface \
@@ -23,6 +24,19 @@ inference fits in 16 GB of VRAM at 1024 resolution.
     -v {output}:/work/output \
     trellis2:blackwell /work/concept.png /work/output {resolution}
   ```
+- **TRELLIS2_BATCH_COMMAND template** (warm; one `docker run` for the whole
+  `asset-factory batch` invocation, model loaded once):
+  ```
+  docker run --rm -i --gpus all -e HF_HUB_OFFLINE=1 \
+    -v /root/.cache/huggingface:/root/.cache/huggingface \
+    -v /root:/root \
+    trellis2:blackwell --batch
+  ```
+  Bind-mounts host `/root` identically so the absolute paths the asset
+  factory writes to stdin resolve inside the container.
+- **Bake defaults** (`trellis_generate.py`): `texture_size=2048`,
+  `decimation_target=500_000`, `PIPELINE_PREFERENCE=('1024', '512')` (tries
+  1024 first; falls back to 512 on `OutOfMemoryError`).
 
 ## HF gated-repo workaround (the long story)
 

@@ -6,13 +6,16 @@ import shlex
 import string
 import subprocess
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
 from asset_factory.runners.base import RunnerRequest, RunnerResult
 
 _SUPPORTED_PLACEHOLDERS = frozenset({"image", "output", "resolution"})
+_BATCH_READY_MARKER = "READY"
+_BATCH_OK_PREFIX = "OK\t"
+_BATCH_ERR_PREFIX = "ERR\t"
 
 
 @dataclass(frozen=True)
@@ -198,3 +201,182 @@ def _write_report(
     if error_message is not None:
         report["error_message"] = error_message
     report_path.write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
+
+
+@dataclass
+class BatchTrellisCommandRunner:
+    """One warm subprocess; multiplex many RunnerRequests over its stdin.
+
+    The command (TRELLIS2_BATCH_COMMAND) must launch a process that prints
+    "READY" once initialization is done, then reads "<image>\\t<output>" lines
+    from stdin and prints "OK\\t<output>" or "ERR\\t<output>\\t<message>" per
+    line (other stdout is captured but ignored for control flow).
+    """
+
+    command_template: str
+    _proc: subprocess.Popen[str] | None = field(default=None, init=False, repr=False)
+    _command_args: list[str] | None = field(default=None, init=False, repr=False)
+    _command: str | None = field(default=None, init=False, repr=False)
+    _stderr_lines: list[str] = field(default_factory=list, init=False, repr=False)
+
+    runner_type = "trellis-batch"
+    runner_version = "trellis2-batch-command"
+
+    @classmethod
+    def from_env(cls) -> BatchTrellisCommandRunner:
+        command_template = os.environ.get("TRELLIS2_BATCH_COMMAND")
+        if not command_template:
+            raise RuntimeError(
+                "TRELLIS2_BATCH_COMMAND is required, for example: "
+                "'docker run --rm -i --gpus all ... trellis2:blackwell --batch'"
+            )
+        return cls(command_template=command_template)
+
+    def __enter__(self) -> BatchTrellisCommandRunner:
+        try:
+            self._command_args = shlex.split(self.command_template)
+        except ValueError as exc:
+            raise RuntimeError(f"Invalid TRELLIS2_BATCH_COMMAND shell syntax: {exc}") from exc
+        if not self._command_args:
+            raise RuntimeError("TRELLIS2_BATCH_COMMAND must include an executable")
+        self._command = shlex.join(self._command_args)
+        self._proc = subprocess.Popen(
+            self._command_args,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1,
+        )
+        self._await_ready()
+        return self
+
+    def __exit__(self, *exc_info: object) -> None:
+        self.close()
+
+    def close(self) -> None:
+        if self._proc is None:
+            return
+        try:
+            if self._proc.stdin and not self._proc.stdin.closed:
+                self._proc.stdin.close()
+            try:
+                self._proc.wait(timeout=30)
+            except subprocess.TimeoutExpired:
+                self._proc.terminate()
+                self._proc.wait(timeout=5)
+        finally:
+            if self._proc.stderr:
+                tail = self._proc.stderr.read()
+                if tail:
+                    self._stderr_lines.append(tail)
+            self._proc = None
+
+    def run(self, request: RunnerRequest) -> RunnerResult:
+        if self._proc is None:
+            raise RuntimeError("BatchTrellisCommandRunner used outside its context manager")
+        request.output_dir.mkdir(parents=True, exist_ok=True)
+        raw_glb_path = request.output_dir / "raw.glb"
+        report_path = request.output_dir / "raw_report.json"
+        output_token = str(request.output_dir.resolve())
+
+        started_at = datetime.now(tz=UTC)
+        stdout_lines: list[str] = []
+        error_type: str | None = None
+        error_message: str | None = None
+
+        try:
+            self._send(f"{str(request.concept_image.resolve())}\t{output_token}")
+            response = self._read_response(output_token, stdout_lines)
+        except (BrokenPipeError, RuntimeError) as exc:
+            error_type = type(exc).__name__
+            error_message = str(exc)
+            response = None
+
+        if response is not None:
+            kind, payload = response
+            if kind == "ERR":
+                error_type = "BatchAssetError"
+                error_message = payload
+            elif not raw_glb_path.exists():
+                error_type = "MissingRawGlbError"
+                error_message = (
+                    f"TRELLIS batch reported OK but {raw_glb_path} is missing"
+                )
+        ended_at = datetime.now(tz=UTC)
+
+        success = error_type is None and raw_glb_path.exists()
+        _write_report(
+            report_path=report_path,
+            runner_type=self.runner_type,
+            runner_version=self.runner_version,
+            request=request,
+            raw_glb_path=raw_glb_path,
+            started_at=started_at,
+            ended_at=ended_at,
+            success=success,
+            command_template=self.command_template,
+            command=self._command,
+            command_args=self._command_args,
+            returncode=None,
+            stdout="".join(stdout_lines) or None,
+            stderr=None,
+            error_type=error_type,
+            error_message=error_message,
+        )
+
+        if not success:
+            raise RuntimeError(f"TRELLIS batch command failed; see {report_path}")
+        return RunnerResult(
+            raw_glb_path=raw_glb_path,
+            report_path=report_path,
+            runner_type=self.runner_type,
+            runner_version=self.runner_version,
+            success=True,
+        )
+
+    def _send(self, line: str) -> None:
+        assert self._proc is not None and self._proc.stdin is not None
+        self._proc.stdin.write(line + "\n")
+        self._proc.stdin.flush()
+
+    def _await_ready(self) -> None:
+        assert self._proc is not None and self._proc.stdout is not None
+        while True:
+            line = self._proc.stdout.readline()
+            if not line:
+                raise RuntimeError(
+                    "TRELLIS2_BATCH_COMMAND exited before printing READY"
+                )
+            if line.rstrip("\n") == _BATCH_READY_MARKER:
+                return
+
+    def _read_response(
+        self, output_token: str, stdout_lines: list[str]
+    ) -> tuple[str, str] | None:
+        assert self._proc is not None and self._proc.stdout is not None
+        while True:
+            line = self._proc.stdout.readline()
+            if not line:
+                raise RuntimeError(
+                    "TRELLIS2_BATCH_COMMAND closed stdout before responding"
+                )
+            stripped = line.rstrip("\n")
+            if stripped.startswith(_BATCH_OK_PREFIX):
+                token = stripped[len(_BATCH_OK_PREFIX):]
+                if token == output_token:
+                    return ("OK", token)
+                raise RuntimeError(
+                    f"TRELLIS2_BATCH_COMMAND responded OK for {token!r} "
+                    f"but expected {output_token!r}"
+                )
+            if stripped.startswith(_BATCH_ERR_PREFIX):
+                rest = stripped[len(_BATCH_ERR_PREFIX):]
+                token, _, message = rest.partition("\t")
+                if token != output_token:
+                    raise RuntimeError(
+                        f"TRELLIS2_BATCH_COMMAND responded ERR for {token!r} "
+                        f"but expected {output_token!r}"
+                    )
+                return ("ERR", message)
+            stdout_lines.append(line)

@@ -22,7 +22,9 @@ def test_conceptual_prompt_prioritizes_readable_structure():
     assert "conceptual educational 3D asset reference" in prompt
     assert "simplified readable parts" in prompt
     assert "no labels" in prompt
-    assert "plain neutral background" in prompt
+    assert "Pure white #ffffff background" in prompt
+    assert "no cast shadows" in prompt
+    assert "three-quarter view" in prompt
 
 
 def test_realistic_prompt_prioritizes_recognition():
@@ -32,4 +34,5 @@ def test_realistic_prompt_prioritizes_recognition():
     assert "realistic educational 3D asset reference" in prompt
     assert "recognizable natural form" in prompt
     assert "no labels" in prompt
-    assert "plain neutral background" in prompt
+    assert "Pure white #ffffff background" in prompt
+    assert "no cast shadows" in prompt

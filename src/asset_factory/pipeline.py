@@ -39,14 +39,21 @@ class PipelineResult:
     manifest: AssetManifest
 
 
-def generate_asset(
+@dataclass(frozen=True)
+class PreparedAsset:
+    spec: AssetSpec
+    layout: RunLayout
+    manifest: AssetManifest
+    generated_image: GeneratedConceptImage
+
+
+def prepare_asset(
     *,
     spec: AssetSpec,
     root_dir: Path,
     image_generator: ImageGenerator,
-    runner: AssetRunner,
     timestamp: str | None = None,
-) -> PipelineResult:
+) -> PreparedAsset:
     layout = create_run_layout(spec, root_dir, timestamp=timestamp)
     manifest = create_initial_manifest(spec, layout, datetime.now(tz=UTC))
     write_manifest(layout.manifest_path, manifest)
@@ -57,17 +64,21 @@ def generate_asset(
         image_path=layout.image_dir / "concept.png",
         prompt_path=layout.image_dir / "prompt.txt",
     )
-    runner_result = runner.run(
-        RunnerRequest(
-            concept_image=generated_image.image_path,
-            output_dir=layout.trellis_dir,
-            resolution=1024,
-        )
+    return PreparedAsset(
+        spec=spec, layout=layout, manifest=manifest, generated_image=generated_image
     )
+
+
+def finalize_asset(prepared: PreparedAsset, runner_result: RunnerResult) -> PipelineResult:
     if not runner_result.success:
         raise RuntimeError(
             f"Asset runner {runner_result.runner_type} failed; report: {runner_result.report_path}"
         )
+
+    spec = prepared.spec
+    layout = prepared.layout
+    manifest = prepared.manifest
+    generated_image = prepared.generated_image
 
     optimized = optimize_asset(
         runner_result.raw_glb_path,
@@ -120,6 +131,27 @@ def generate_asset(
     write_manifest(layout.manifest_path, manifest)
     _write_export_manifests(exports, manifest)
     return PipelineResult(run_dir=layout.run_dir, layout=layout, manifest=manifest)
+
+
+def generate_asset(
+    *,
+    spec: AssetSpec,
+    root_dir: Path,
+    image_generator: ImageGenerator,
+    runner: AssetRunner,
+    timestamp: str | None = None,
+) -> PipelineResult:
+    prepared = prepare_asset(
+        spec=spec, root_dir=root_dir, image_generator=image_generator, timestamp=timestamp
+    )
+    runner_result = runner.run(
+        RunnerRequest(
+            concept_image=prepared.generated_image.image_path,
+            output_dir=prepared.layout.trellis_dir,
+            resolution=1024,
+        )
+    )
+    return finalize_asset(prepared, runner_result)
 
 
 def _apply_outputs(
