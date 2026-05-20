@@ -184,6 +184,17 @@ def review(run_dir: Path, port: int = 8765) -> None:
     serve_review(run_dir, port=port)
 
 
+@app.command()
+def workshop(
+    root: Annotated[Path, typer.Option()] = Path("runs"),
+    port: int = 8765,
+) -> None:
+    """Interactive prompt → image → 3D server. Requires OPENAI_API_KEY and TRELLIS2_COMMAND."""
+    from asset_factory.review import serve_workshop
+
+    serve_workshop(root, port=port)
+
+
 def _spec_from_manifest(run_dir: Path, manifest_path: Path) -> AssetSpec:
     manifest = read_manifest(manifest_path)
     copied_spec = run_dir / "input" / "asset.yaml"

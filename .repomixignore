@@ -1,0 +1,55 @@
+# Patterns here are in addition to .gitignore and repomix's built-in
+# binary-file detection. Goal: ship only what helps an LLM reason about
+# the code — drop binaries, generated output, and oversized historical docs.
+
+# --- Binary / media assets (also caught by binary detection, listed for clarity) ---
+docs/assets/
+*.gif
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.mp4
+*.mov
+*.glb
+*.gltf
+*.ply
+*.obj
+*.fbx
+*.stl
+
+# --- Historical planning docs (huge, low value for code context) ---
+# Keep specs/ — those describe the current design. Drop plans/ — they're
+# the long implementation log and balloon the pack.
+docs/superpowers/plans/
+
+# --- Pipeline run outputs (generated, may contain large artifacts) ---
+runs/
+**/runs/
+
+# --- Python tooling caches & build artifacts (belt-and-suspenders vs .gitignore) ---
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+
+# --- Lockfiles (rarely useful to an LLM; large and noisy) ---
+uv.lock
+poetry.lock
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# --- Editor / OS cruft ---
+.DS_Store
+.idea/
+.vscode/
+
+# --- Repomix's own output, in case it's ever generated in-repo ---
+repomix-output.*

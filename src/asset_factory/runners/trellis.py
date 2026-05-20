@@ -103,8 +103,8 @@ class TrellisCommandRunner:
 
 def _build_command_args(command_template: str, request: RunnerRequest) -> list[str]:
     placeholder_values = {
-        "image": str(request.concept_image),
-        "output": str(request.output_dir),
+        "image": str(request.concept_image.resolve()),
+        "output": str(request.output_dir.resolve()),
         "resolution": str(request.resolution),
     }
     sentinel_command, placeholder_tokens = _build_sentinel_command(command_template)

@@ -9,3 +9,4 @@ dist/
 build/
 .venv/
 uv.lock
+repomix-codebase.xml
