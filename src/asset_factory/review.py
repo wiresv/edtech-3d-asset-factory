@@ -9,7 +9,7 @@ from urllib.parse import parse_qs, urlsplit
 FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 SEEDS_DIR = Path(__file__).resolve().parents[2] / "assets" / "seeds"
 SEEDS_CACHE_DIR = SEEDS_DIR / "cache"
-SPA_ROUTES = frozenset({"/", "/workshop", "/workshop.html", "/review", "/review.html"})
+SPA_ROUTES = frozenset({"/", "/workshop", "/workshop.html"})
 
 
 def _list_seed_prompts() -> list[dict[str, object]]:
@@ -35,51 +35,8 @@ def _list_seed_prompts() -> list[dict[str, object]]:
     return items
 
 
-def _load_seed_spec(seed_id: str):
-    from asset_factory.specs import load_asset_spec
-
-    for path in SEEDS_DIR.glob("*.yaml"):
-        spec = load_asset_spec(path)
-        if spec.id == seed_id:
-            return spec
-    return None
-
-
 class ReviewHTTPServer(http.server.ThreadingHTTPServer):
     allow_reuse_address = True
-
-
-def write_review_html(
-    run_dir: Path,
-    *,
-    asset_id: str,
-    concept_image: str,  # noqa: ARG001 — preserved for manifest provenance compatibility
-    glb_path: str,  # noqa: ARG001
-    thumbnail: str,  # noqa: ARG001
-    qa_passed: bool,  # noqa: ARG001
-    warnings: list[str],  # noqa: ARG001
-) -> Path:
-    """Write a tiny meta-refresh HTML that bounces to the SPA review route.
-
-    The SPA reads the run path from `?run=<asset>/<timestamp>` and fetches
-    review data via /api/review. The relative-path computation only works if
-    the run dir layout is `<runs_root>/<asset>/<timestamp>/` — which is what
-    the pipeline always produces.
-    """
-    reports_dir = run_dir / "reports"
-    reports_dir.mkdir(parents=True, exist_ok=True)
-    rel_run = f"{run_dir.parent.name}/{run_dir.name}"
-    target = f"/review?run={rel_run}"
-    body = (
-        "<!doctype html>\n"
-        '<meta charset="utf-8">\n'
-        f'<meta http-equiv="refresh" content="0; url={target}">\n'
-        f"<title>Review {asset_id}</title>\n"
-        f'<p>Redirecting to <a href="{target}">{target}</a>…</p>\n'
-    )
-    path = reports_dir / "review.html"
-    path.write_text(body, encoding="utf-8")
-    return path
 
 
 def _find_initial_run(runs_root: Path) -> dict | None:
@@ -114,52 +71,10 @@ def _find_initial_run(runs_root: Path) -> dict | None:
     }
 
 
-def _read_review_for(run_dir: Path, url_prefix: str) -> dict | None:
-    """Assemble review JSON for a run dir. URLs are rooted at `url_prefix`.
-
-    Manifest file paths can be absolute, so we ignore them and use the
-    canonical layout produced by the pipeline.
-    """
-    manifest_path = run_dir / "manifest.json"
-    if not manifest_path.is_file():
-        return None
-    try:
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return None
-    asset = manifest.get("asset", {})
-    qa = manifest.get("qa", {})
-    warnings = [*qa.get("blocking_failures", []), *qa.get("warnings", [])]
-    prefix = url_prefix.rstrip("/")
-
-    def url(rel: str) -> str:
-        return f"{prefix}/{rel}" if prefix else f"/{rel}"
-
-    return {
-        "asset_id": asset.get("id", run_dir.name),
-        "concept_image_url": url("image/concept.png"),
-        "glb_url": url("optimize/asset.glb"),
-        "thumbnail_url": url("previews/thumbnail.png"),
-        "qa_passed": bool(qa.get("passed", False)),
-        "warnings": [str(w) for w in warnings],
-    }
-
-
 class _SPAHandler(http.server.SimpleHTTPRequestHandler):
-    """Serves the React SPA + JSON API, falling through to static files.
-
-    Two modes:
-      - workshop: `runs_root` is the parent of many `<asset>/<timestamp>/` dirs.
-      - single_run: `runs_root` is one such dir; `/api/review` ignores ?run= and
-        returns data for the served directory itself.
-    """
-
     runs_root: Path
-    single_run: bool = False
-    workshop_enabled: bool = True
 
     def log_message(self, format: str, *args) -> None:  # noqa: A002
-        # Match SimpleHTTPRequestHandler's default to stderr but quieter.
         super().log_message(format, *args)
 
     def do_GET(self) -> None:  # noqa: N802
@@ -167,8 +82,7 @@ class _SPAHandler(http.server.SimpleHTTPRequestHandler):
         path = url.path
 
         if path == "/api/initial":
-            initial = None if self.single_run else _find_initial_run(self.runs_root)
-            self._write_json(200, initial)
+            self._write_json(200, _find_initial_run(self.runs_root))
             return
 
         if path == "/api/seed-prompts":
@@ -184,26 +98,6 @@ class _SPAHandler(http.server.SimpleHTTPRequestHandler):
                 self._write_json(500, {"error": str(exc)})
             return
 
-        if path == "/api/review":
-            if self.single_run:
-                data = _read_review_for(self.runs_root, url_prefix="")
-            else:
-                params = parse_qs(url.query)
-                run_param = (params.get("run") or [""])[0].strip("/")
-                if not run_param:
-                    self._write_json(404, {"error": "missing run param"})
-                    return
-                run_dir = (self.runs_root / run_param).resolve()
-                if not _under(run_dir, self.runs_root.resolve()) or not run_dir.is_dir():
-                    self._write_json(404, {"error": "run not found"})
-                    return
-                data = _read_review_for(run_dir, url_prefix=f"/{run_param}")
-            if data is None:
-                self._write_json(404, {"error": "no review data"})
-                return
-            self._write_json(200, data)
-            return
-
         if path in SPA_ROUTES:
             self._serve_spa_index()
             return
@@ -215,9 +109,6 @@ class _SPAHandler(http.server.SimpleHTTPRequestHandler):
         super().do_GET()
 
     def do_POST(self) -> None:  # noqa: N802
-        if not self.workshop_enabled:
-            self.send_error(405)
-            return
         try:
             length = int(self.headers.get("Content-Length") or 0)
             payload = json.loads(self.rfile.read(length) or b"{}")
@@ -308,7 +199,6 @@ class _SPAHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(data)))
         if path.suffix in {".js", ".css", ".woff2", ".png", ".jpg", ".svg"}:
-            # Vite emits hashed names — safe to cache aggressively.
             self.send_header("Cache-Control", "public, max-age=31536000, immutable")
         self.end_headers()
         self.wfile.write(data)
@@ -338,22 +228,7 @@ def serve_workshop(runs_root: Path, port: int) -> None:
         pass
 
     Handler.runs_root = runs_root.resolve()
-    Handler.single_run = False
-    Handler.workshop_enabled = True
     handler = partial(Handler, directory=str(runs_root))
     with ReviewHTTPServer(("127.0.0.1", port), handler) as httpd:
         print(f"Serving workshop at http://127.0.0.1:{port}/")
-        httpd.serve_forever()
-
-
-def serve_review(run_dir: Path, port: int) -> None:
-    class Handler(_SPAHandler):
-        pass
-
-    Handler.runs_root = run_dir.resolve()
-    Handler.single_run = True
-    Handler.workshop_enabled = False
-    handler = partial(Handler, directory=str(run_dir))
-    with ReviewHTTPServer(("127.0.0.1", port), handler) as httpd:
-        print(f"Serving review for {run_dir} at http://127.0.0.1:{port}/review")
         httpd.serve_forever()

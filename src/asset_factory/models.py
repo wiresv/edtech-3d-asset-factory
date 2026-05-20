@@ -103,7 +103,6 @@ class FileManifest(BaseModel):
     thumbnail: str | None = None
     turntable: str | None = None
     qa_report: str | None = None
-    review_html: str | None = None
     exports: dict[ExportProfile, str] = Field(default_factory=dict)
 
 

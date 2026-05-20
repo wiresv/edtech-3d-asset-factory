@@ -16,7 +16,7 @@ def test_cli_help_renders():
     result = CliRunner().invoke(app, ["--help"])
     assert result.exit_code == 0
     assert "generate" in result.output
-    assert "review" in result.output
+    assert "workshop" in result.output
 
 
 def test_cli_import_does_not_import_review():

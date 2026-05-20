@@ -92,17 +92,6 @@ def finalize_asset(prepared: PreparedAsset, runner_result: RunnerResult) -> Pipe
         json.dumps(qa_summary.model_dump(mode="json"), indent=2, sort_keys=True),
         encoding="utf-8",
     )
-    from asset_factory.review import write_review_html
-
-    review_html = write_review_html(
-        layout.run_dir,
-        asset_id=spec.id,
-        concept_image="image/concept.png",
-        glb_path="optimize/asset.glb",
-        thumbnail="previews/thumbnail.png",
-        qa_passed=qa_summary.passed,
-        warnings=qa_summary.warnings,
-    )
 
     manifest = _apply_outputs(
         manifest=manifest,
@@ -110,7 +99,6 @@ def finalize_asset(prepared: PreparedAsset, runner_result: RunnerResult) -> Pipe
         runner_result=runner_result,
         optimized=optimized,
         qa_report=qa_report,
-        review_html=review_html,
         qa_summary=qa_summary,
         exports={},
     )
@@ -124,7 +112,6 @@ def finalize_asset(prepared: PreparedAsset, runner_result: RunnerResult) -> Pipe
         runner_result=runner_result,
         optimized=optimized,
         qa_report=qa_report,
-        review_html=review_html,
         qa_summary=qa_summary,
         exports=exports,
     )
@@ -161,7 +148,6 @@ def _apply_outputs(
     runner_result: RunnerResult,
     optimized: OptimizedAsset,
     qa_report: Path,
-    review_html: Path,
     qa_summary: QaSummary,
     exports: dict[ExportProfile, Path],
 ) -> AssetManifest:
@@ -177,7 +163,6 @@ def _apply_outputs(
         thumbnail=optimized.thumbnail,
         turntable=optimized.turntable,
         qa_report=qa_report,
-        review_html=review_html,
         exports=exports,
         qa_summary=qa_summary,
     )

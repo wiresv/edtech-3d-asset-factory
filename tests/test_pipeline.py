@@ -66,14 +66,12 @@ def test_generate_asset_creates_complete_run(tmp_path: Path):
     assert (run_dir / "optimize" / "asset.glb").exists()
     assert (run_dir / "previews" / "thumbnail.png").exists()
     assert (run_dir / "previews" / "turntable.webm").exists()
-    assert (run_dir / "reports" / "review.html").exists()
     assert (run_dir / "exports" / "web" / "asset.glb").exists()
     assert (run_dir / "exports" / "unity" / "asset.glb").exists()
     assert read_manifest(run_dir / "manifest.json") == result.manifest
     assert result.manifest.qa.passed is True
     assert result.manifest.provenance.openai_model == "fake-image-model"
     assert result.manifest.provenance.runner_type == "mock"
-    assert result.manifest.files.review_html == str(run_dir / "reports" / "review.html")
     assert result.manifest.files.exports == {
         ExportProfile.WEB: str(run_dir / "exports" / "web"),
         ExportProfile.UNITY: str(run_dir / "exports" / "unity"),
@@ -90,7 +88,6 @@ def test_generate_asset_creates_complete_run(tmp_path: Path):
         assert exported_manifest.files.qa_report == "qa.json"
         assert exported_manifest.files.raw_glb is None
         assert exported_manifest.files.concept_image is None
-        assert exported_manifest.files.review_html is None
         assert exported_manifest.files.exports == {profile: "."}
 
 
@@ -106,7 +103,6 @@ def test_generate_asset_skips_exports_when_qa_fails(tmp_path: Path):
     )
 
     assert result.manifest.qa.passed is False
-    assert (result.run_dir / "reports" / "review.html").exists()
     assert result.manifest.files.exports == {}
     assert not (result.run_dir / "exports" / "web" / "asset.glb").exists()
     assert not (result.run_dir / "exports" / "unity" / "asset.glb").exists()

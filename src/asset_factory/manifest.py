@@ -61,7 +61,6 @@ def package_local_manifest(manifest: AssetManifest, profile: ExportProfile) -> A
     package_manifest.files.thumbnail = "thumbnail.png"
     package_manifest.files.turntable = "turntable.webm"
     package_manifest.files.qa_report = "qa.json"
-    package_manifest.files.review_html = None
     package_manifest.files.exports = {profile: "."}
     return package_manifest
 
@@ -105,7 +104,6 @@ def apply_pipeline_outputs(
     thumbnail: Path,
     turntable: Path,
     qa_report: Path,
-    review_html: Path | None,
     exports: dict[ExportProfile, Path],
     qa_summary: QaSummary,
 ) -> AssetManifest:
@@ -119,7 +117,6 @@ def apply_pipeline_outputs(
     manifest.files.thumbnail = str(thumbnail)
     manifest.files.turntable = str(turntable)
     manifest.files.qa_report = str(qa_report)
-    manifest.files.review_html = str(review_html) if review_html else None
     manifest.files.exports = {profile: str(path) for profile, path in exports.items()}
     manifest.qa = qa_summary
     return manifest

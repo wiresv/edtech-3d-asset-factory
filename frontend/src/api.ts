@@ -4,15 +4,6 @@ export interface InitialRun {
   glb_url: string;
 }
 
-export interface ReviewData {
-  asset_id: string;
-  concept_image_url: string;
-  glb_url: string;
-  thumbnail_url: string;
-  qa_passed: boolean;
-  warnings: string[];
-}
-
 export interface ImageResponse {
   run_id: string;
   image_url: string;
@@ -55,8 +46,6 @@ export const api = {
   getSeedPrompts: () => getJSON<SeedPrompt[]>("/api/seed-prompts"),
   getSeedImage: (id: string) =>
     getJSON<ImageResponse>("/api/seed-image?id=" + encodeURIComponent(id)),
-  getReview: (run?: string | null) =>
-    getJSON<ReviewData>("/api/review" + (run ? `?run=${encodeURIComponent(run)}` : "")),
   postImage: (prompt: string) =>
     postJSON<ImageResponse>("/api/image", { prompt }),
   postRun3d: (run_id: string) =>

@@ -166,8 +166,6 @@ def qa(run_dir: Path) -> None:
         manifest.files.exports = {}
     else:
         manifest.files.exports = _exports_from_package_dirs(complete_export_dirs)
-    review_html = _write_review_html(run_dir, manifest)
-    manifest.files.review_html = str(review_html)
     write_manifest(manifest_path, manifest)
 
     qa_report = run_dir / "reports" / "qa.json"
@@ -232,14 +230,6 @@ def export(run_dir: Path, profile: ExportProfile = ExportProfile.WEB) -> None:
 
     for export_profile, output_dir in outputs.items():
         typer.echo(f"Exported {export_profile.value}: {output_dir}")
-
-
-@app.command()
-def review(run_dir: Path, port: int = 8765) -> None:
-    """Open a local browser review dashboard for an existing run directory."""
-    from asset_factory.review import serve_review
-
-    serve_review(run_dir, port=port)
 
 
 @app.command()
@@ -414,16 +404,3 @@ def _remove_export_package_dirs(run_dir: Path, export_dirs: Iterable[Path]) -> N
         shutil.rmtree(resolved_export_dir)
 
 
-def _write_review_html(run_dir: Path, manifest: AssetManifest) -> Path:
-    from asset_factory.review import write_review_html
-
-    warnings = [*manifest.qa.blocking_failures, *manifest.qa.warnings]
-    return write_review_html(
-        run_dir,
-        asset_id=manifest.asset.id,
-        concept_image="image/concept.png",
-        glb_path="optimize/asset.glb",
-        thumbnail="previews/thumbnail.png",
-        qa_passed=manifest.qa.passed,
-        warnings=warnings,
-    )
