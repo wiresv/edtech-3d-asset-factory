@@ -131,14 +131,18 @@ def batch(
     ]
     with BatchTrellisCommandRunner.from_env() as batch_runner:
         for prep in prepared:
-            result = batch_runner.run(
-                RunnerRequest(
-                    concept_image=prep.generated_image.image_path,
-                    output_dir=prep.layout.trellis_dir,
-                    resolution=1024,
+            try:
+                result = batch_runner.run(
+                    RunnerRequest(
+                        concept_image=prep.generated_image.image_path,
+                        output_dir=prep.layout.trellis_dir,
+                        resolution=1024,
+                    )
                 )
-            )
-            final = finalize_asset(prep, result)
+                final = finalize_asset(prep, result)
+            except RuntimeError as exc:
+                typer.echo(f"Failed {prep.spec.id}: {exc}", err=True)
+                continue
             typer.echo(f"Generated run: {final.run_dir}")
 
 

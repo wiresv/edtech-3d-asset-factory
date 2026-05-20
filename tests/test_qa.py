@@ -248,6 +248,23 @@ def write_box_with_base_color_texture_uri(path: Path, uri: str) -> None:
     mutate_glb_json(path, mutate)
 
 
+def write_box_with_ext_webp_base_color_texture(path: Path) -> None:
+    write_box(path)
+    (path.parent / "texture.webp").write_bytes(b"webp")
+
+    def mutate(glb_json: dict) -> None:
+        pbr = glb_json["materials"][0].setdefault("pbrMetallicRoughness", {})
+        pbr.pop("baseColorFactor", None)
+        pbr["baseColorTexture"] = {"index": 0}
+        glb_json["textures"] = [
+            {"extensions": {"EXT_texture_webp": {"source": 0}}}
+        ]
+        glb_json["images"] = [{"uri": "texture.webp", "mimeType": "image/webp"}]
+        glb_json["extensionsUsed"] = ["EXT_texture_webp"]
+
+    mutate_glb_json(path, mutate)
+
+
 def write_box_with_empty_base_color_texture_image(path: Path) -> None:
     write_box(path)
 
@@ -651,6 +668,16 @@ def test_qa_passes_external_base_color_texture_uri_with_sibling_file(tmp_path: P
     assert report.blocking_failures == []
     assert report.metrics["primitive_count"] == 1
     assert report.metrics["primitives_missing_material"] == 0
+    assert report.metrics["primitives_missing_base_color"] == 0
+
+
+def test_qa_passes_ext_texture_webp_base_color(tmp_path: Path):
+    glb_path = tmp_path / "asset.glb"
+    write_box_with_ext_webp_base_color_texture(glb_path)
+
+    report = run_qa(make_spec(), glb_path)
+
+    assert "Required base color data is missing" not in report.blocking_failures
     assert report.metrics["primitives_missing_base_color"] == 0
 
 

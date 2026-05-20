@@ -35,8 +35,10 @@ inference fits in 16 GB of VRAM at 1024 resolution.
   Bind-mounts host `/root` identically so the absolute paths the asset
   factory writes to stdin resolve inside the container.
 - **Bake defaults** (`trellis_generate.py`): `texture_size=2048`,
-  `decimation_target=500_000`, `PIPELINE_PREFERENCE=('1024', '512')` (tries
-  1024 first; falls back to 512 on `OutOfMemoryError`).
+  `decimation_target=500_000`, `PIPELINE_TYPE='512'`. flash-attn now lets
+  voxel-1024 inference fit, but `o_voxel.postprocess.to_glb` still OOMs
+  the texture decoder on 16 GB VRAM even at texture_size=2048 (verified
+  empirically — tried, OOM with 52 MiB short).
 
 ## HF gated-repo workaround (the long story)
 

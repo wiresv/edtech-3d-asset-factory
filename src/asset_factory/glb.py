@@ -151,6 +151,9 @@ def _has_valid_base_color_texture(
 
     images = glb_json.get("images")
     source_index = texture.get("source")
+    if source_index is None:
+        webp_ext = (texture.get("extensions") or {}).get("EXT_texture_webp") or {}
+        source_index = webp_ext.get("source")
     return _is_valid_index(source_index, images) and _has_usable_image_data(
         images[source_index], glb_json, glb_parent
     )
