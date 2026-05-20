@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -100,7 +100,7 @@ export function useThreeViewer(): UseThreeViewerResult {
     };
   }, []);
 
-  function loadGlb(url: string): Promise<void> {
+  const loadGlb = useCallback((url: string): Promise<void> => {
     return new Promise((resolve, reject) => {
       const s = sceneRef.current;
       if (!s) return reject(new Error("viewer not mounted"));
@@ -120,15 +120,15 @@ export function useThreeViewer(): UseThreeViewerResult {
         (err) => reject(err instanceof Error ? err : new Error("GLB failed to load")),
       );
     });
-  }
+  }, []);
 
-  function clear() {
+  const clear = useCallback(() => {
     const s = sceneRef.current;
     if (s && s.model) {
       s.scene.remove(s.model);
       s.model = null;
     }
-  }
+  }, []);
 
   return { containerRef, loadGlb, clear };
 }
