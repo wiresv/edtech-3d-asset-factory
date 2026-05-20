@@ -119,7 +119,7 @@ class _SPAHandler(http.server.SimpleHTTPRequestHandler):
             if self.path == "/api/image":
                 result = self._gen_image(str(payload["prompt"]).strip())
             elif self.path == "/api/run3d":
-                result = self._run_3d(str(payload["run_id"]))
+                result = self._run_3d(str(payload["run_id"]), bool(payload.get("fast")))
             else:
                 self.send_error(404)
                 return
@@ -163,7 +163,7 @@ class _SPAHandler(http.server.SimpleHTTPRequestHandler):
         )
         return {"run_id": run_id, "image_url": f"/workshop/{run_id}/image/concept.png"}
 
-    def _run_3d(self, run_id: str) -> dict:
+    def _run_3d(self, run_id: str, fast: bool) -> dict:
         from asset_factory.runners.base import RunnerRequest
         from asset_factory.runners.trellis import TrellisCommandRunner
 
@@ -175,6 +175,7 @@ class _SPAHandler(http.server.SimpleHTTPRequestHandler):
             RunnerRequest(
                 concept_image=image_path,
                 output_dir=run_dir / "trellis",
+                resolution=512 if fast else 1024,
             )
         )
         return {"glb_url": f"/workshop/{run_id}/trellis/raw.glb"}

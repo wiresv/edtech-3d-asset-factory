@@ -48,6 +48,6 @@ export const api = {
     getJSON<ImageResponse>("/api/seed-image?id=" + encodeURIComponent(id)),
   postImage: (prompt: string) =>
     postJSON<ImageResponse>("/api/image", { prompt }),
-  postRun3d: (run_id: string) =>
-    postJSON<Run3dResponse>("/api/run3d", { run_id }),
+  postRun3d: (run_id: string, fast: boolean) =>
+    postJSON<Run3dResponse>("/api/run3d", { run_id, fast }),
 };
