@@ -32,7 +32,20 @@ const initialState: State = {
 export default function Workshop() {
   const [s, setS] = useState<State>(initialState);
   const [seeds, setSeeds] = useState<SeedPrompt[]>([]);
+  const [elapsed, setElapsed] = useState(0);
   const viewerRef = useRef<ModelViewerHandle>(null);
+
+  useEffect(() => {
+    if (s.busy === "none") {
+      setElapsed(0);
+      return;
+    }
+    const start = Date.now();
+    const handle = window.setInterval(() => {
+      setElapsed(Math.floor((Date.now() - start) / 1000));
+    }, 500);
+    return () => window.clearInterval(handle);
+  }, [s.busy]);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,7 +82,7 @@ export default function Workshop() {
     setS((p) => ({
       ...p,
       busy: "image",
-      status: { text: "Generating image with OpenAI…", tone: "busy" },
+      status: { text: "Generating image with OpenAI — usually 10–30s…", tone: "busy" },
     }));
     try {
       const { run_id, image_url } = await api.postImage(prompt);
@@ -95,7 +108,7 @@ export default function Workshop() {
     setS((p) => ({
       ...p,
       busy: "model",
-      status: { text: "Running TRELLIS — this takes about 2 minutes…", tone: "busy" },
+      status: { text: "Running TRELLIS on the GPU — usually 1–2 min…", tone: "busy" },
     }));
     try {
       const { glb_url } = await api.postRun3d(s.currentRunId);
@@ -188,7 +201,14 @@ export default function Workshop() {
             </div>
           )}
           <div className="mt-2.5">
-            <StatusLine text={s.status.text} tone={s.status.tone} />
+            <StatusLine
+              text={
+                s.busy !== "none" && elapsed > 0
+                  ? `${s.status.text} (${elapsed}s)`
+                  : s.status.text
+              }
+              tone={s.status.tone}
+            />
           </div>
         </Card>
 
