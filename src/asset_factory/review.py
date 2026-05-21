@@ -119,7 +119,7 @@ class _SPAHandler(http.server.SimpleHTTPRequestHandler):
             self._serve_spa_index()
             return
 
-        if path.startswith("/assets/"):
+        if path.startswith("/assets/") or path == "/favicon.svg":
             self._serve_from_dist(path)
             return
 
