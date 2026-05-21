@@ -40,14 +40,21 @@ class ReviewHTTPServer(http.server.ThreadingHTTPServer):
     allow_reuse_address = True
 
 
+DEFAULT_INITIAL_ASSET_ID = "chloroplast_001"
+
+
 def _find_initial_run(runs_root: Path) -> dict | None:
-    """Pick the newest completed run under runs_root (excluding workshop/)."""
+    """Pick the newest completed chloroplast run, falling back to any newest run."""
     if not runs_root.is_dir():
         return None
-    candidates: list[tuple[float, Path, Path, Path, Path]] = []
-    for asset_dir in runs_root.iterdir():
-        if not asset_dir.is_dir() or asset_dir.name == "workshop":
-            continue
+
+    def rel(p: Path) -> str:
+        return "/" + p.relative_to(runs_root).as_posix()
+
+    def collect(asset_dir: Path) -> list[tuple[float, Path, Path, Path]]:
+        out: list[tuple[float, Path, Path, Path]] = []
+        if not asset_dir.is_dir():
+            return out
         for run_dir in asset_dir.iterdir():
             if not run_dir.is_dir():
                 continue
@@ -56,15 +63,20 @@ def _find_initial_run(runs_root: Path) -> dict | None:
             glb = run_dir / "optimize" / "asset.glb"
             if not (prompt.exists() and image.exists() and glb.exists()):
                 continue
-            candidates.append((run_dir.stat().st_mtime, run_dir, prompt, image, glb))
+            out.append((run_dir.stat().st_mtime, prompt, image, glb))
+        return out
+
+    candidates = collect(runs_root / DEFAULT_INITIAL_ASSET_ID)
+    if not candidates:
+        for asset_dir in runs_root.iterdir():
+            if not asset_dir.is_dir() or asset_dir.name == "workshop":
+                continue
+            candidates.extend(collect(asset_dir))
     if not candidates:
         return None
+
     candidates.sort(reverse=True)
-    _, _, prompt, image, glb = candidates[0]
-
-    def rel(p: Path) -> str:
-        return "/" + p.relative_to(runs_root).as_posix()
-
+    _, prompt, image, glb = candidates[0]
     return {
         "prompt": prompt.read_text(encoding="utf-8"),
         "image_url": rel(image),
