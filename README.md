@@ -61,9 +61,12 @@ The workshop endpoint serves the prebuilt SPA from `frontend/dist/` — it 503s 
 
 ### 4. Build the TRELLIS Docker image
 
+The Blackwell-compatible TRELLIS.2 image (CUDA 12.8 / PyTorch 2.7 / Blackwell flash-attn) and its
+stdin/stdout wrapper live in `trellis-runner/` (96-line `Dockerfile` + 120-line
+`trellis_generate.py`).
+
 ```bash
-git clone https://github.com/wiresv/trellis2-runner.git
-( cd trellis2-runner && docker build -t trellis2:blackwell . )
+( cd trellis-runner && docker build -t trellis2:blackwell . )
 ```
 
 First build is ~20 min (compiles flash-attn / nvdiffrast / FlexGEMM against CUDA 12.8); resulting image is ~37 GB.
@@ -205,8 +208,8 @@ in VRAM across many assets.
 
 ## Local TRELLIS.2 Inference (Docker, Blackwell)
 
-The companion repo `trellis2-runner` ships a Blackwell-compatible Docker image and a wrapper
-script that satisfies both protocols.
+`trellis-runner/` in this repo ships a Blackwell-compatible Docker image (CUDA 12.8, PyTorch 2.7,
+Blackwell flash-attn wheels) and a wrapper script that satisfies both runner protocols.
 
 Requirements: Linux host with an NVIDIA GPU (tested on RTX 5080 / sm_120), Docker with the NVIDIA
 Container Toolkit, `OPENAI_API_KEY` for concept image generation, and TRELLIS.2 weights cached
@@ -215,9 +218,7 @@ under `~/.cache/huggingface`.
 Build the image:
 
 ```bash
-git clone https://github.com/wiresv/trellis2-runner.git
-cd trellis2-runner
-docker build -t trellis2:blackwell .
+( cd trellis-runner && docker build -t trellis2:blackwell . )
 ```
 
 Single-shot generation:
