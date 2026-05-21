@@ -84,7 +84,7 @@ export default function Workshop() {
     setS((p) => ({
       ...p,
       busy: "image",
-      status: { text: "Generating image with OpenAI — usually 10–30s…", tone: "busy" },
+      status: { text: "Generating image with OpenAI — usually 15–30s…", tone: "busy" },
     }));
     try {
       const { run_id, image_url } = await api.postImage(prompt);
