@@ -181,7 +181,7 @@ export default function Workshop() {
               }
             }}
             placeholder="A stylized chloroplast with prominent thylakoid stacks, soft conceptual shading…"
-            className="mt-3 min-h-[80px] w-full flex-1 resize-none rounded-xl border border-line bg-paper px-3.5 py-3 text-[13.5px] leading-relaxed text-ink placeholder:text-muted-2 focus:border-ink focus:outline-none focus:ring-0"
+            className="mt-3 min-h-[80px] w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-3 text-[13.5px] leading-relaxed text-ink placeholder:text-muted-2 focus:border-ink focus:outline-none focus:ring-0"
           />
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <button
@@ -259,14 +259,14 @@ export default function Workshop() {
             />
           </div>
           {seeds.length > 0 && (
-            <div className="mt-4 border-t border-line-2 pt-3">
+            <div className="mt-4 flex min-h-0 flex-1 flex-col border-t border-line-2 pt-3">
               <div className="mb-2 flex items-baseline justify-between">
                 <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-2">
                   Try one
                 </span>
                 <span className="text-[10px] text-muted-2">{seeds.length} examples</span>
               </div>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-1.5 overflow-y-auto scrollbar-thin">
                 {seeds.map((seed) => (
                   <button
                     key={seed.id}
