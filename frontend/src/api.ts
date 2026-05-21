@@ -29,8 +29,46 @@ async function postJSON<T>(url: string, body: unknown): Promise<T> {
     body: JSON.stringify(body),
   });
   const data = (await r.json().catch(() => ({}))) as { error?: string } & T;
-  if (!r.ok) throw new Error(data.error || r.statusText);
+  if (!r.ok) throw new Error(data.error || r.statusText || `HTTP ${r.status}`);
   return data;
+}
+
+async function streamRun3d(run_id: string, fast: boolean): Promise<Run3dResponse> {
+  const r = await fetch("/api/run3d", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ run_id, fast }),
+  });
+  if (!r.ok || !r.body) {
+    throw new Error(`HTTP ${r.status}${r.statusText ? " " + r.statusText : ""}`);
+  }
+  const reader = r.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  let final: { status?: string; glb_url?: string; error?: string } | null = null;
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (value) buf += decoder.decode(value, { stream: true });
+    let nl = buf.indexOf("\n");
+    while (nl >= 0) {
+      const line = buf.slice(0, nl).trim();
+      buf = buf.slice(nl + 1);
+      if (line) {
+        try {
+          const obj = JSON.parse(line) as { status?: string; glb_url?: string; error?: string };
+          if (obj.error || obj.status === "done") final = obj;
+        } catch {
+          // ignore non-JSON heartbeat noise
+        }
+      }
+      nl = buf.indexOf("\n");
+    }
+    if (done) break;
+  }
+  if (!final) throw new Error("server closed connection without result");
+  if (final.error) throw new Error(final.error);
+  if (!final.glb_url) throw new Error("server reported done but returned no glb_url");
+  return { glb_url: final.glb_url };
 }
 
 async function getJSON<T>(url: string): Promise<T | null> {
@@ -48,6 +86,5 @@ export const api = {
     getJSON<ImageResponse>("/api/seed-image?id=" + encodeURIComponent(id)),
   postImage: (prompt: string) =>
     postJSON<ImageResponse>("/api/image", { prompt }),
-  postRun3d: (run_id: string, fast: boolean) =>
-    postJSON<Run3dResponse>("/api/run3d", { run_id, fast }),
+  postRun3d: (run_id: string, fast: boolean) => streamRun3d(run_id, fast),
 };

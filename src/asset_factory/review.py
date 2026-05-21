@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import http.server
 import json
+import threading
 from functools import partial
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
@@ -116,10 +117,11 @@ class _SPAHandler(http.server.SimpleHTTPRequestHandler):
         try:
             length = int(self.headers.get("Content-Length") or 0)
             payload = json.loads(self.rfile.read(length) or b"{}")
+            if self.path == "/api/run3d":
+                self._stream_run_3d(str(payload["run_id"]), bool(payload.get("fast")))
+                return
             if self.path == "/api/image":
                 result = self._gen_image(str(payload["prompt"]).strip())
-            elif self.path == "/api/run3d":
-                result = self._run_3d(str(payload["run_id"]), bool(payload.get("fast")))
             else:
                 self.send_error(404)
                 return
@@ -127,6 +129,41 @@ class _SPAHandler(http.server.SimpleHTTPRequestHandler):
             self._write_json(500, {"error": str(exc)})
             return
         self._write_json(200, result)
+
+    def _stream_run_3d(self, run_id: str, fast: bool) -> None:
+        self.send_response(200)
+        self.send_header("Content-Type", "application/x-ndjson")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Accel-Buffering", "no")
+        self.send_header("Connection", "close")
+        self.end_headers()
+
+        outcome: dict[str, object] = {}
+
+        def work() -> None:
+            try:
+                outcome["value"] = self._run_3d(run_id, fast)
+            except Exception as exc:  # noqa: BLE001
+                outcome["error"] = str(exc) or exc.__class__.__name__
+
+        worker = threading.Thread(target=work, daemon=True)
+        worker.start()
+        try:
+            while True:
+                worker.join(timeout=10)
+                if not worker.is_alive():
+                    break
+                self.wfile.write(b'{"status":"working"}\n')
+                self.wfile.flush()
+            if "error" in outcome:
+                final = {"error": outcome["error"]}
+            else:
+                value = outcome.get("value") or {}
+                final = {"status": "done", **value}  # type: ignore[dict-item]
+            self.wfile.write(json.dumps(final).encode("utf-8") + b"\n")
+            self.wfile.flush()
+        except (BrokenPipeError, ConnectionResetError):
+            return
 
     def _materialize_seed(self, query: dict[str, list[str]]) -> dict:
         from datetime import UTC, datetime
