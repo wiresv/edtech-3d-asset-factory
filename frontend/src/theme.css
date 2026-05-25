@@ -9,36 +9,36 @@
     @apply h-full;
   }
   html {
-    @apply bg-paper text-ink antialiased;
+    @apply bg-canvas text-ink antialiased;
     font-feature-settings: "ss01", "cv11", "cv02";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
   body {
     font-family: "Inter Tight", "Inter", ui-sans-serif, system-ui, sans-serif;
-    letter-spacing: -0.005em;
+    letter-spacing: -0.011em;
+    overflow: hidden;
   }
   ::selection {
-    background: rgba(91, 91, 214, 0.18);
-  }
-  /* Hide native scrollbars on the body — content is viewport-fit */
-  body {
-    overflow: hidden;
+    background: rgba(94, 106, 210, 0.2);
   }
 }
 
 @layer utilities {
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: #d4d4d8 transparent;
+    scrollbar-color: #d6d7dc transparent;
   }
   .scrollbar-thin::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: #d4d4d8;
+    background-color: #dadbe0;
     border-radius: 999px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: #c6c7cd;
   }
   .scrollbar-thin::-webkit-scrollbar-track {
     background: transparent;

@@ -28,9 +28,9 @@ function useHealth(intervalMs = 15000): boolean {
 
 export default function App() {
   return (
-    <div className="flex h-full flex-col bg-paper text-ink">
+    <div className="flex h-full flex-col bg-canvas text-ink">
       <Header />
-      <main className="mx-auto flex w-full max-w-[1480px] flex-1 min-h-0 flex-col px-6 pb-6">
+      <main className="mx-auto flex w-full max-w-[1560px] flex-1 min-h-0 flex-col px-5 pb-5">
         <Workshop />
       </main>
     </div>
@@ -40,26 +40,38 @@ export default function App() {
 function Header() {
   const connected = useHealth();
   return (
-    <header className="mx-auto flex w-full max-w-[1480px] shrink-0 items-center justify-between px-6 pt-5 pb-4">
+    <header className="mx-auto flex w-full max-w-[1560px] shrink-0 items-center justify-between px-5 pb-3 pt-4">
       <div className="flex items-center gap-2.5">
         <LogoMark />
         <div className="flex items-baseline gap-2">
-          <span className="font-display text-[15px] font-semibold tracking-tight text-ink">
+          <span className="font-display text-[15px] font-semibold tracking-[-0.01em] text-ink">
             Workshop
           </span>
-          <span className="text-[12px] font-medium text-muted-2">
+          <span className="hidden text-[12px] font-medium text-muted-2 sm:inline">
             asset-factory
           </span>
         </div>
       </div>
-      <div className="flex items-center gap-2 text-[12px] text-muted">
-        <span
-          className={
-            "inline-flex h-2 w-2 rounded-full " +
-            (connected ? "bg-accent-green" : "bg-accent-red")
-          }
-        />
-        <span>{connected ? "Connected" : "Disconnected"}</span>
+      <div
+        className={
+          "flex items-center gap-2 rounded-pill border px-2.5 py-1 text-[11.5px] font-medium transition-colors " +
+          (connected
+            ? "border-accent-green/20 bg-accent-green/[0.07] text-accent-green"
+            : "border-accent-red/20 bg-accent-red/[0.07] text-accent-red")
+        }
+      >
+        <span className="relative flex h-2 w-2">
+          {connected && (
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent-green/40" />
+          )}
+          <span
+            className={
+              "relative inline-flex h-2 w-2 rounded-full " +
+              (connected ? "bg-accent-green" : "bg-accent-red")
+            }
+          />
+        </span>
+        {connected ? "Connected" : "Disconnected"}
       </div>
     </header>
   );
@@ -67,36 +79,17 @@ function Header() {
 
 function LogoMark() {
   return (
-    <svg
-      width="22"
-      height="22"
-      viewBox="0 0 22 22"
-      fill="none"
-      aria-hidden
-      className="text-ink"
-    >
-      <rect
-        x="1.5"
-        y="1.5"
-        width="19"
-        height="19"
-        rx="5"
-        stroke="currentColor"
-        strokeWidth="1.4"
-      />
-      <path
-        d="M6.5 14.5L11 5.5L15.5 14.5"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M8.25 11h5.5"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-      />
-    </svg>
+    <div className="grid h-7 w-7 place-items-center rounded-[8px] bg-ink text-paper shadow-card">
+      <svg width="16" height="16" viewBox="0 0 22 22" fill="none" aria-hidden>
+        <path
+          d="M6 14.5L11 5.5L16 14.5"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path d="M8 11h6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      </svg>
+    </div>
   );
 }

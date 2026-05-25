@@ -35,6 +35,7 @@ export default function Workshop() {
   const [s, setS] = useState<State>(initialState);
   const [seeds, setSeeds] = useState<SeedPrompt[]>([]);
   const [elapsed, setElapsed] = useState(0);
+  const [conceptOpen, setConceptOpen] = useState(false);
   const viewerRef = useRef<ModelViewerHandle>(null);
 
   useEffect(() => {
@@ -75,6 +76,15 @@ export default function Workshop() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!conceptOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setConceptOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [conceptOpen]);
+
   async function onGenerateImage() {
     const prompt = s.prompt.trim();
     if (!prompt) {
@@ -93,7 +103,7 @@ export default function Workshop() {
         busy: "none",
         currentRunId: run_id,
         imageUrl: image_url + "?t=" + Date.now(),
-        status: { text: "Image ready. Approve to build the 3D model.", tone: "ok" },
+        status: { text: "Concept ready. Build the 3D model when you're happy with it.", tone: "ok" },
       }));
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -119,7 +129,7 @@ export default function Workshop() {
         busy: "none",
         currentRunId: r.run_id,
         imageUrl: r.image_url + "?t=" + Date.now(),
-        status: { text: "Cached concept ready. Approve to build the 3D model.", tone: "ok" },
+        status: { text: "Cached concept ready. Build the 3D model to continue.", tone: "ok" },
       }));
       return;
     }
@@ -146,7 +156,7 @@ export default function Workshop() {
     try {
       const { glb_url } = await api.postRun3d(s.currentRunId, fast);
       await viewerRef.current?.load(glb_url);
-      setS((p) => ({ ...p, busy: "none", status: { text: "Done.", tone: "ok" } }));
+      setS((p) => ({ ...p, busy: "none", status: { text: "Model ready.", tone: "ok" } }));
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setS((p) => ({
@@ -157,55 +167,60 @@ export default function Workshop() {
     }
   }
 
-  const imageReady = !!s.currentRunId || !!s.imageUrl;
   const genDisabled = s.busy !== "none";
   const approveDisabled = !s.currentRunId || s.busy !== "none";
+  const conceptInteractive = !!s.imageUrl && s.busy !== "image";
+  const statusText =
+    s.busy !== "none" && elapsed > 0 ? `${s.status.text} (${elapsed}s)` : s.status.text;
 
   return (
-    <div className="grid h-full min-h-0 grid-cols-1 gap-4 lg:grid-cols-[380px_minmax(0,1fr)]">
-      <aside className="flex min-h-0 flex-col gap-4 overflow-hidden">
-        <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="flex items-center justify-between">
-            <PillBadge tone="purple" icon={<Sparkles />}>
-              Prompt
-            </PillBadge>
-            <KeyHint label="⌘ ↵" />
-          </div>
-          <textarea
-            value={s.prompt}
-            onChange={(e) => setS((p) => ({ ...p, prompt: e.target.value }))}
-            onKeyDown={(e) => {
-              if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && !genDisabled) {
-                e.preventDefault();
-                onGenerateImage();
-              }
-            }}
-            placeholder="A stylized chloroplast with prominent thylakoid stacks, soft conceptual shading…"
-            className="mt-3 min-h-[80px] w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-3 text-[13.5px] leading-relaxed text-ink placeholder:text-muted-2 focus:border-ink focus:outline-none focus:ring-0"
-          />
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={onGenerateImage}
-              disabled={genDisabled}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-ink px-3 text-[13px] font-medium text-paper transition-opacity hover:opacity-90 disabled:cursor-wait disabled:opacity-50"
-            >
-              {s.busy === "image" ? <Spinner /> : <Sparkles />}
-              {s.busy === "image" ? "Generating" : "Generate image"}
-            </button>
-            <button
-              type="button"
-              onClick={onApprove}
-              disabled={approveDisabled}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line bg-card px-3 text-[13px] font-medium text-ink transition-colors hover:border-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-line"
-            >
-              {s.busy === "model" ? <Spinner /> : <CubeIcon />}
-              {s.busy === "model" ? "Building" : "Build 3D"}
-            </button>
+    <>
+      <div className="grid h-full min-h-0 grid-cols-1 gap-4 lg:grid-cols-[clamp(340px,26vw,400px)_minmax(0,1fr)]">
+        <aside className="flex min-h-0 animate-riseIn">
+          <Card className="flex min-h-0 w-full flex-col overflow-hidden">
+            <div className="flex items-center justify-between">
+              <PillBadge icon={<Sparkles />}>Prompt</PillBadge>
+              <KeyHint label="⌘ ↵" />
+            </div>
+
+            <textarea
+              value={s.prompt}
+              onChange={(e) => setS((p) => ({ ...p, prompt: e.target.value }))}
+              onKeyDown={(e) => {
+                if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && !genDisabled) {
+                  e.preventDefault();
+                  onGenerateImage();
+                }
+              }}
+              placeholder="A stylized chloroplast with prominent thylakoid stacks, soft conceptual shading, clean educational form…"
+              className="mt-3 h-36 w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-3 text-[13.5px] leading-relaxed text-ink outline-none transition placeholder:text-muted-2 focus:border-accent-purple/50 focus:ring-4 focus:ring-accent-purple/10"
+            />
+
+            <div className="mt-3 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onGenerateImage}
+                disabled={genDisabled}
+                className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-accent-purple px-3 text-[13px] font-medium text-white shadow-card outline-none transition hover:bg-accent-purple-strong focus-visible:ring-2 focus-visible:ring-accent-purple/40 disabled:cursor-wait disabled:opacity-60"
+              >
+                {s.busy === "image" ? <Spinner /> : <Sparkles />}
+                {s.busy === "image" ? "Generating" : "Generate image"}
+              </button>
+              <button
+                type="button"
+                onClick={onApprove}
+                disabled={approveDisabled}
+                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-line bg-card px-3.5 text-[13px] font-medium text-ink outline-none transition hover:bg-surface focus-visible:ring-2 focus-visible:ring-ink/15 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-card"
+              >
+                {s.busy === "model" ? <Spinner /> : <CubeIcon />}
+                {s.busy === "model" ? "Building" : "Build 3D"}
+              </button>
+            </div>
+
             <div
               role="radiogroup"
               aria-label="3D generation quality preset"
-              className="inline-flex h-8 overflow-hidden rounded-lg border border-line bg-card text-[12px] font-medium"
+              className="mt-2.5 inline-flex w-full items-center gap-0.5 rounded-lg border border-line bg-surface p-0.5 text-[12px] font-medium"
             >
               <button
                 type="button"
@@ -215,10 +230,8 @@ export default function Workshop() {
                 disabled={s.busy !== "none"}
                 title="Full quality — sharper mesh and texture, ~1–2 min"
                 className={
-                  "inline-flex items-center gap-1.5 px-2.5 transition-colors disabled:cursor-not-allowed disabled:opacity-40 " +
-                  (!s.fast
-                    ? "bg-ink text-paper"
-                    : "text-muted hover:bg-surface hover:text-ink")
+                  "inline-flex h-7 flex-1 items-center justify-center gap-1.5 rounded-md transition disabled:cursor-not-allowed disabled:opacity-50 " +
+                  (!s.fast ? "bg-card text-ink shadow-card" : "text-muted hover:text-ink")
                 }
               >
                 <DiamondIcon />
@@ -232,109 +245,158 @@ export default function Workshop() {
                 disabled={s.busy !== "none"}
                 title="Draft — faster but visibly rougher; coarser mesh, lower-res texture"
                 className={
-                  "inline-flex items-center gap-1.5 border-l border-line px-2.5 transition-colors disabled:cursor-not-allowed disabled:opacity-40 " +
-                  (s.fast
-                    ? "bg-accent-amber text-paper"
-                    : "text-muted hover:bg-surface hover:text-ink")
+                  "inline-flex h-7 flex-1 items-center justify-center gap-1.5 rounded-md transition disabled:cursor-not-allowed disabled:opacity-50 " +
+                  (s.fast ? "bg-card text-accent-amber shadow-card" : "text-muted hover:text-ink")
                 }
               >
                 <BoltIcon />
                 Draft
               </button>
             </div>
-          </div>
-          <div className="mt-1.5 text-[11px] text-muted-2">
-            {s.fast
-              ? "Draft preset · faster generation, lower-fidelity mesh + texture"
-              : "Quality preset · sharper mesh + texture, longer wait"}
-          </div>
-          <div className="mt-2 min-h-[18px]">
-            <StatusLine
-              text={
-                s.busy !== "none" && elapsed > 0
-                  ? `${s.status.text} (${elapsed}s)`
-                  : s.status.text
-              }
-              tone={s.status.tone}
-            />
-          </div>
-          {seeds.length > 0 && (
-            <div className="mt-4 flex min-h-0 flex-1 flex-col border-t border-line-2 pt-3">
-              <div className="mb-2 flex items-baseline justify-between">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-2">
-                  Try one
-                </span>
-                <span className="text-[10px] text-muted-2">{seeds.length} examples</span>
-              </div>
-              <div className="flex flex-wrap gap-1.5 overflow-y-auto scrollbar-thin">
-                {seeds.map((seed) => (
-                  <button
-                    key={seed.id}
-                    type="button"
-                    onClick={() => onSeedClick(seed)}
-                    disabled={genDisabled}
-                    title={seed.cached ? `${seed.label} (cached — instant)` : seed.label}
-                    className="group inline-flex items-center gap-1.5 rounded-pill border border-line bg-card px-2.5 py-1 text-[11.5px] font-medium text-muted transition-all hover:border-ink hover:bg-surface hover:text-ink hover:shadow-card disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-line disabled:hover:bg-card disabled:hover:text-muted disabled:hover:shadow-none"
-                  >
-                    <span
-                      className={
-                        "h-1.5 w-1.5 rounded-full transition-transform group-hover:scale-125 " +
-                        SUBJECT_DOT[seed.subject]
-                      }
-                    />
-                    {seed.label}
-                  </button>
-                ))}
-              </div>
+
+            <p className="mt-1.5 text-[11px] leading-snug text-muted-2">
+              {s.fast
+                ? "Draft · faster generation, lower-fidelity mesh + texture."
+                : "Quality · sharper mesh + texture, longer wait."}
+            </p>
+
+            <div className="mt-2 min-h-[34px]">
+              <StatusLine text={statusText} tone={s.status.tone} />
             </div>
-          )}
-        </Card>
 
-        <Card padded={false} className="flex flex-col overflow-hidden">
-          <div className="flex items-center justify-between px-5 pt-4">
-            <PillBadge tone="blue" icon={<ImageIcon />}>
-              Concept
-            </PillBadge>
-            {s.imageUrl && (
-              <span className="text-[11px] font-medium text-muted-2">1024×1024</span>
-            )}
-          </div>
-          <div className="relative mx-5 mb-5 mt-3 aspect-square overflow-hidden rounded-xl border border-line bg-surface">
-            {imageReady && s.imageUrl ? (
-              <img
-                src={s.imageUrl}
-                alt="Concept preview"
-                className="absolute inset-0 h-full w-full object-contain"
-              />
-            ) : (
-              <div className="absolute inset-0 grid place-items-center text-[12px] text-muted-2">
-                Submit a prompt to generate a concept.
+            {seeds.length > 0 && (
+              <div className="mt-3 flex min-h-0 flex-1 flex-col border-t border-line-2 pt-3">
+                <div className="mb-2.5 flex items-baseline justify-between">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-2">
+                    Examples
+                  </span>
+                  <span className="text-[10px] text-muted-2">{seeds.length} ready</span>
+                </div>
+                <div className="-mr-1 flex min-h-0 flex-1 flex-wrap content-start gap-1.5 overflow-y-auto pr-1 scrollbar-thin">
+                  {seeds.map((seed) => (
+                    <button
+                      key={seed.id}
+                      type="button"
+                      onClick={() => onSeedClick(seed)}
+                      disabled={genDisabled}
+                      title={seed.cached ? `${seed.label} — cached, instant` : seed.label}
+                      className="group inline-flex items-center gap-1.5 rounded-pill border border-line bg-card px-2.5 py-[5px] text-[11.5px] font-medium text-ink-2 transition-all hover:-translate-y-px hover:bg-surface hover:text-ink hover:shadow-card disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:bg-card disabled:hover:text-ink-2 disabled:hover:shadow-none"
+                    >
+                      <span
+                        className={
+                          "h-1.5 w-1.5 rounded-full transition-transform group-hover:scale-125 " +
+                          SUBJECT_DOT[seed.subject]
+                        }
+                      />
+                      {seed.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
-          </div>
-        </Card>
-      </aside>
+          </Card>
+        </aside>
 
-      <Card padded={false} className="relative flex min-h-0 flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-5 pt-4">
-          <div className="flex items-center gap-2.5">
-            <PillBadge tone="green" icon={<CubeIcon />}>
-              3D Preview
-            </PillBadge>
-            <span className="text-[11px] font-medium text-muted-2">WebGL · GLB</span>
+        <div className="flex min-h-0 animate-riseIn" style={{ animationDelay: "70ms" }}>
+          <Card
+            padded={false}
+            className="relative flex min-h-0 w-full flex-col overflow-hidden"
+          >
+          <div className="flex items-center justify-between px-5 pt-4">
+            <div className="flex items-center gap-2.5">
+              <PillBadge icon={<CubeIcon />}>3D Preview</PillBadge>
+              <span className="text-[11px] font-medium text-muted-2">WebGL · GLB</span>
+            </div>
+            <span className="hidden text-[11px] font-medium text-muted-2 sm:inline">
+              drag · scroll · right-click pan
+            </span>
           </div>
-          <span className="text-[11px] font-medium text-muted-2">
-            drag · scroll · right-click pan
-          </span>
+
+          <ModelViewer
+            ref={viewerRef}
+            initialUrl={s.initialGlbUrl}
+            placeholder="Generate a concept, then build the 3D model."
+            className="m-4 mt-3 flex-1"
+          />
+
+          <div
+            className={
+              "absolute bottom-4 right-4 z-10 w-[clamp(124px,15vw,184px)] " +
+              (conceptInteractive ? "" : "pointer-events-none")
+            }
+          >
+            <button
+              type="button"
+              onClick={() => conceptInteractive && setConceptOpen(true)}
+              disabled={!conceptInteractive}
+              className="group relative block aspect-square w-full overflow-hidden rounded-xl border border-line bg-card shadow-pop transition-transform duration-200 enabled:hover:-translate-y-0.5 disabled:cursor-default"
+            >
+              <span className="absolute left-2 top-2 z-10 inline-flex items-center gap-1 rounded-pill bg-card/85 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-[0.07em] text-muted backdrop-blur-sm">
+                <ImageIcon />
+                Concept
+              </span>
+              {s.imageUrl ? (
+                <>
+                  <img
+                    src={s.imageUrl}
+                    alt="Concept preview"
+                    className="absolute inset-0 h-full w-full bg-surface object-contain"
+                  />
+                  {s.busy !== "image" && (
+                    <span className="absolute bottom-2 right-2 z-10 inline-flex items-center gap-1 rounded-pill bg-ink/70 px-1.5 py-0.5 text-[9.5px] font-medium text-white opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100">
+                      <ExpandIcon />
+                      Expand
+                    </span>
+                  )}
+                </>
+              ) : (
+                <span className="absolute inset-0 grid place-items-center px-4 text-center text-[10.5px] leading-tight text-muted-2">
+                  Concept appears here
+                </span>
+              )}
+              {s.busy === "image" && (
+                <span className="absolute inset-0 z-10 grid place-items-center bg-card/70 backdrop-blur-sm">
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-muted">
+                    <Spinner />
+                    Generating…
+                  </span>
+                </span>
+              )}
+            </button>
+          </div>
+          </Card>
         </div>
-        <ModelViewer
-          ref={viewerRef}
-          initialUrl={s.initialGlbUrl}
-          placeholder="Submit a prompt to begin."
-          className="m-5 flex-1"
-        />
-      </Card>
-    </div>
+      </div>
+
+      {conceptOpen && s.imageUrl && (
+        <div
+          className="fixed inset-0 z-50 grid animate-fadeIn place-items-center bg-ink/70 p-8 backdrop-blur-sm"
+          onClick={() => setConceptOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Concept image"
+        >
+          <figure
+            className="flex max-h-full max-w-full animate-popIn flex-col items-center gap-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={s.imageUrl}
+              alt="Concept"
+              className="max-h-[80vh] max-w-[80vw] rounded-card border border-white/10 bg-surface object-contain shadow-pop"
+            />
+            <figcaption className="flex items-center gap-2 text-[12px] font-medium text-white/70">
+              Concept · 1024×1024
+              <span className="text-white/30">·</span>
+              <kbd className="rounded border border-white/20 px-1.5 py-0.5 font-mono text-[10px] text-white/60">
+                Esc
+              </kbd>
+              to close
+            </figcaption>
+          </figure>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -350,12 +412,7 @@ function Spinner() {
   return (
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden className="animate-spin">
       <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2.5" opacity="0.25" />
-      <path
-        d="M21 12a9 9 0 0 0-9-9"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-      />
+      <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
     </svg>
   );
 }
@@ -407,6 +464,20 @@ function DiamondIcon() {
   return (
     <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
       <path d="M12 2l10 10-10 10L2 12z" />
+    </svg>
+  );
+}
+
+function ExpandIcon() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }

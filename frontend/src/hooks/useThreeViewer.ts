@@ -45,7 +45,6 @@ export function useThreeViewer(): UseThreeViewerResult {
     if (!container) return;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0e1117);
     const camera = new THREE.PerspectiveCamera(
       45,
       container.clientWidth / container.clientHeight || 1,
@@ -53,16 +52,22 @@ export function useThreeViewer(): UseThreeViewerResult {
       100,
     );
     camera.position.set(2.5, 2, 2.5);
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(window.devicePixelRatio);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setClearColor(0x000000, 0);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
     renderer.setSize(container.clientWidth, container.clientHeight);
     container.appendChild(renderer.domElement);
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    scene.add(new THREE.HemisphereLight(0xffffff, 0x223344, 3));
-    const key = new THREE.DirectionalLight(0xffffff, 2);
+    scene.add(new THREE.HemisphereLight(0xffffff, 0xd9dde4, 2.1));
+    const key = new THREE.DirectionalLight(0xffffff, 1.7);
     key.position.set(3, 4, 2);
     scene.add(key);
+    const fill = new THREE.DirectionalLight(0xeaf0ff, 0.55);
+    fill.position.set(-4, 1.5, -3);
+    scene.add(fill);
 
     const state: SceneState = {
       scene,
