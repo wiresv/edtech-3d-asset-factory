@@ -1,4 +1,4 @@
-import { useEffect, useImperativeHandle, useState, forwardRef } from "react";
+import { useEffect, useImperativeHandle, useRef, useState, forwardRef } from "react";
 import { useThreeViewer } from "../hooks/useThreeViewer";
 import Aurora from "./Aurora";
 
@@ -18,6 +18,7 @@ const ModelViewer = forwardRef<ModelViewerHandle, Props>(function ModelViewer(
   ref,
 ) {
   const { containerRef, loadGlb } = useThreeViewer();
+  const spotRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<{ text: string; tone: "info" | "error" | "hidden" }>({
     text: placeholder,
     tone: "info",
@@ -60,21 +61,43 @@ const ModelViewer = forwardRef<ModelViewerHandle, Props>(function ModelViewer(
     };
   }, [initialUrl, loadGlb]);
 
+  function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    const el = spotRef.current;
+    if (!el) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - r.left) / r.width) * 100;
+    const y = ((e.clientY - r.top) / r.height) * 100;
+    el.style.background = `radial-gradient(320px circle at ${x}% ${y}%, rgba(180,196,255,0.10), transparent 60%)`;
+  }
+
+  function onPointerLeave() {
+    const el = spotRef.current;
+    if (el) {
+      el.style.background =
+        "radial-gradient(320px circle at 50% 36%, rgba(180,196,255,0.05), transparent 60%)";
+    }
+  }
+
   return (
-    <div className={`relative overflow-hidden rounded-card ring-1 ring-line ${className}`}>
+    <div
+      className={`relative overflow-hidden rounded-card ring-1 ring-white/[0.06] ${className}`}
+      onPointerMove={onPointerMove}
+      onPointerLeave={onPointerLeave}
+    >
       <div
         className="absolute inset-0"
         style={{
           background:
-            "radial-gradient(125% 95% at 50% -8%, #ffffff 0%, #f3f4f7 46%, #e7e9ee 100%)",
+            "radial-gradient(125% 95% at 50% -6%, #1b1d2b 0%, #101120 52%, #07070f 100%)",
         }}
       />
-      <Aurora active={working} className="opacity-70" />
+      <Aurora active={working} className="aurora--glow" />
+      <div ref={spotRef} className="pointer-events-none absolute inset-0" />
       <div
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5"
         style={{
           background:
-            "radial-gradient(60% 80% at 50% 120%, rgb(11 11 13 / 0.12) 0%, transparent 70%)",
+            "radial-gradient(58% 52% at 50% 116%, rgba(94,106,210,0.22) 0%, transparent 70%)",
         }}
       />
       <div ref={containerRef} className="relative h-full w-full" />
@@ -84,8 +107,8 @@ const ModelViewer = forwardRef<ModelViewerHandle, Props>(function ModelViewer(
             className={
               "rounded-pill border px-3 py-1.5 text-[12px] font-medium backdrop-blur-md " +
               (status.tone === "error"
-                ? "border-accent-red/20 bg-accent-red/10 text-accent-red"
-                : "border-line bg-card/70 text-muted")
+                ? "border-accent-red/40 bg-accent-red/20 text-white"
+                : "border-white/10 bg-white/10 text-white/80")
             }
           >
             {status.text}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 
 interface SceneState {
   scene: THREE.Scene;
@@ -9,7 +10,29 @@ interface SceneState {
   renderer: THREE.WebGLRenderer;
   controls: OrbitControls;
   model: THREE.Object3D | null;
+  spawnBase: THREE.Vector3 | null;
+  spawnAt: number;
+  reduceMotion: boolean;
   loader: GLTFLoader;
+}
+
+const SPAWN_MS = 520;
+
+function disposeMaterial(material: THREE.Material): void {
+  for (const value of Object.values(material as unknown as Record<string, unknown>)) {
+    if (value && (value as THREE.Texture).isTexture) (value as THREE.Texture).dispose();
+  }
+  material.dispose();
+}
+
+function disposeObject(object: THREE.Object3D): void {
+  object.traverse((node) => {
+    const mesh = node as THREE.Mesh;
+    if (mesh.geometry) mesh.geometry.dispose();
+    const material = mesh.material;
+    if (Array.isArray(material)) material.forEach(disposeMaterial);
+    else if (material) disposeMaterial(material);
+  });
 }
 
 function frame(object: THREE.Object3D, s: SceneState): void {
@@ -44,6 +67,8 @@ export function useThreeViewer(): UseThreeViewerResult {
     const container = containerRef.current;
     if (!container) return;
 
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(
       45,
@@ -56,24 +81,33 @@ export function useThreeViewer(): UseThreeViewerResult {
     renderer.setClearColor(0x000000, 0);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.05;
+    renderer.toneMappingExposure = 0.92;
     renderer.setSize(container.clientWidth, container.clientHeight);
     container.appendChild(renderer.domElement);
+
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const roomEnv = new RoomEnvironment();
+    const envTexture = pmrem.fromScene(roomEnv, 0.04).texture;
+    roomEnv.dispose();
+    scene.environment = envTexture;
+    scene.environmentIntensity = 0.42;
+
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.autoRotate = true;
+    controls.autoRotate = !reduceMotion;
     controls.autoRotateSpeed = 0.55;
     const stopAutoRotate = () => {
       controls.autoRotate = false;
     };
     controls.addEventListener("start", stopAutoRotate);
-    scene.add(new THREE.HemisphereLight(0xffffff, 0xd9dde4, 2.1));
-    const key = new THREE.DirectionalLight(0xffffff, 1.7);
-    key.position.set(3, 4, 2);
+
+    scene.add(new THREE.HemisphereLight(0xccd6ff, 0x0b0b12, 0.18));
+    const key = new THREE.DirectionalLight(0xffffff, 0.95);
+    key.position.set(3, 5, 2);
     scene.add(key);
-    const fill = new THREE.DirectionalLight(0xeaf0ff, 0.55);
-    fill.position.set(-4, 1.5, -3);
-    scene.add(fill);
+    const rim = new THREE.DirectionalLight(0x8b7cf6, 0.7);
+    rim.position.set(-4, 2.5, -4);
+    scene.add(rim);
 
     const state: SceneState = {
       scene,
@@ -81,11 +115,23 @@ export function useThreeViewer(): UseThreeViewerResult {
       renderer,
       controls,
       model: null,
+      spawnBase: null,
+      spawnAt: 0,
+      reduceMotion,
       loader: new GLTFLoader(),
     };
     sceneRef.current = state;
 
     renderer.setAnimationLoop(() => {
+      if (state.model && state.spawnAt && state.spawnBase) {
+        const t = Math.min((performance.now() - state.spawnAt) / SPAWN_MS, 1);
+        const eased = 1 - Math.pow(1 - t, 3);
+        state.model.scale.copy(state.spawnBase).multiplyScalar(0.92 + 0.08 * eased);
+        if (t >= 1) {
+          state.model.scale.copy(state.spawnBase);
+          state.spawnAt = 0;
+        }
+      }
       controls.update();
       renderer.render(scene, camera);
     });
@@ -105,6 +151,9 @@ export function useThreeViewer(): UseThreeViewerResult {
       controls.removeEventListener("start", stopAutoRotate);
       controls.dispose();
       renderer.setAnimationLoop(null);
+      if (state.model) disposeObject(state.model);
+      envTexture.dispose();
+      pmrem.dispose();
       renderer.dispose();
       if (renderer.domElement.parentElement === container) {
         container.removeChild(renderer.domElement);
@@ -119,6 +168,7 @@ export function useThreeViewer(): UseThreeViewerResult {
       if (!s) return reject(new Error("viewer not mounted"));
       if (s.model) {
         s.scene.remove(s.model);
+        disposeObject(s.model);
         s.model = null;
       }
       s.loader.load(
@@ -127,7 +177,14 @@ export function useThreeViewer(): UseThreeViewerResult {
           s.scene.add(gltf.scene);
           s.model = gltf.scene;
           frame(gltf.scene, s);
-          s.controls.autoRotate = true;
+          if (s.reduceMotion) {
+            s.spawnAt = 0;
+          } else {
+            s.spawnBase = gltf.scene.scale.clone();
+            gltf.scene.scale.copy(s.spawnBase).multiplyScalar(0.92);
+            s.spawnAt = performance.now();
+            s.controls.autoRotate = true;
+          }
           resolve();
         },
         undefined,
@@ -140,6 +197,7 @@ export function useThreeViewer(): UseThreeViewerResult {
     const s = sceneRef.current;
     if (s && s.model) {
       s.scene.remove(s.model);
+      disposeObject(s.model);
       s.model = null;
     }
   }, []);

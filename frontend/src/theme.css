@@ -84,6 +84,14 @@
   background: radial-gradient(circle at center, rgba(75, 174, 235, 0.42), transparent 70%);
   animation: auroraDrift3 30s ease-in-out infinite;
 }
+.aurora--glow .aurora-blob {
+  mix-blend-mode: screen;
+  opacity: 0.7;
+  filter: blur(58px);
+}
+.aurora--glow.aurora--active .aurora-blob {
+  opacity: 0.95;
+}
 .aurora--active .aurora-blob-1 {
   animation-duration: 11s;
   opacity: 0.82;

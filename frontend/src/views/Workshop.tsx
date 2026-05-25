@@ -352,21 +352,21 @@ export default function Workshop() {
 
             {s.busy === "model" && (
               <div className="pointer-events-none absolute inset-0 z-20 grid animate-fadeIn place-items-center">
-                <div className="flex flex-col items-center gap-3 rounded-2xl border border-line bg-card/70 px-8 py-7 shadow-pop backdrop-blur-md">
-                  <div className="relative grid h-14 w-14 place-items-center text-accent-purple">
-                    <span className="absolute inset-0 animate-breathe rounded-full bg-accent-purple/25 blur-md" />
-                    <span className="absolute inset-0 animate-spinSlow rounded-full border-2 border-accent-purple/25 border-t-accent-purple" />
+                <div className="flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-ink/40 px-8 py-7 shadow-pop backdrop-blur-xl">
+                  <div className="relative grid h-14 w-14 place-items-center text-accent-violet">
+                    <span className="absolute inset-0 animate-breathe rounded-full bg-accent-purple/40 blur-lg" />
+                    <span className="absolute inset-0 animate-spinSlow rounded-full border-2 border-white/10 border-t-accent-violet" />
                     <span className="relative [&_svg]:h-6 [&_svg]:w-6">
                       <CubeIcon />
                     </span>
                   </div>
                   <div className="text-center">
-                    <div className="text-[13px] font-semibold text-ink">Forging model</div>
-                    <div className="font-mono text-[11px] text-muted">
+                    <div className="text-[13px] font-semibold text-white">Forging model</div>
+                    <div className="font-mono text-[11px] text-white/55">
                       {s.fast ? "draft preset" : "quality preset"}
                     </div>
                   </div>
-                  <div className="font-mono text-[22px] font-semibold tabular-nums text-ink">
+                  <div className="font-mono text-[24px] font-semibold tabular-nums text-white">
                     {elapsedLabel}
                   </div>
                 </div>
@@ -383,7 +383,7 @@ export default function Workshop() {
                 type="button"
                 onClick={() => conceptInteractive && setConceptOpen(true)}
                 disabled={!conceptInteractive}
-                className="group relative block aspect-square w-full overflow-hidden rounded-xl border border-line bg-card shadow-pop transition-transform duration-200 enabled:hover:-translate-y-0.5 disabled:cursor-default"
+                className="group relative block aspect-square w-full overflow-hidden rounded-xl border border-white/15 bg-card shadow-pop ring-1 ring-white/10 transition-transform duration-200 enabled:hover:-translate-y-0.5 disabled:cursor-default"
               >
                 <span className="absolute left-2 top-2 z-10 inline-flex items-center gap-1 rounded-pill bg-card/85 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-[0.07em] text-muted backdrop-blur-sm">
                   <ImageIcon />
