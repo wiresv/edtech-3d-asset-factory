@@ -208,12 +208,9 @@ export default function Workshop() {
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-[clamp(340px,26vw,400px)_minmax(0,1fr)]">
         <aside className="flex min-h-0 animate-riseIn" style={{ animationDelay: "60ms" }}>
           <Card className="flex min-h-0 w-full flex-col overflow-hidden">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-2">
-                Describe your asset
-              </span>
-              <KeyHint label="⌘ ↵" />
-            </div>
+            <span className="block text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-2">
+              Describe your asset
+            </span>
 
             <textarea
               value={s.prompt}
@@ -225,7 +222,7 @@ export default function Workshop() {
                 }
               }}
               placeholder="A stylized chloroplast with prominent thylakoid stacks, soft conceptual shading, clean educational form…"
-              className="mt-2.5 h-36 w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-3 text-[13.5px] leading-relaxed text-ink outline-none transition placeholder:text-muted-2 focus:border-accent-purple/50 focus:ring-4 focus:ring-accent-purple/10"
+              className="mt-2.5 h-36 w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-3 text-[13.5px] leading-relaxed text-ink outline-none transition placeholder:text-muted-2 focus:border-accent/50 focus:ring-4 focus:ring-accent/10"
             />
 
             <div className="mt-3 flex items-center gap-2">
@@ -233,17 +230,23 @@ export default function Workshop() {
                 type="button"
                 onClick={onGenerateImage}
                 disabled={genDisabled}
-                className="group relative inline-flex h-9 flex-1 items-center justify-center gap-1.5 overflow-hidden rounded-lg bg-accent-purple px-3 text-[13px] font-medium text-white shadow-card outline-none transition hover:bg-accent-purple-strong focus-visible:ring-2 focus-visible:ring-accent-purple/40 disabled:cursor-wait disabled:opacity-60"
+                className="group inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-ink px-3 text-[13px] font-medium text-white shadow-[0_1px_2px_0_rgb(16_17_26/0.06),inset_0_1px_0_0_rgb(255_255_255/0.1)] outline-none transition hover:bg-[#1c1c22] active:scale-[0.985] focus-visible:ring-2 focus-visible:ring-ink/25 disabled:cursor-wait disabled:opacity-60 disabled:active:scale-100"
               >
-                <span className="pointer-events-none absolute inset-y-0 -left-1/2 w-1/2 -skew-x-12 bg-white/20 opacity-0 transition-all duration-500 group-hover:left-[120%] group-hover:opacity-100" />
-                {s.busy === "image" ? <Spinner /> : <Sparkles />}
-                {s.busy === "image" ? "Generating" : "Generate image"}
+                <span className="transition-transform duration-300 group-hover:rotate-[16deg] group-hover:scale-110">
+                  {s.busy === "image" ? <Spinner /> : <Sparkles />}
+                </span>
+                <span>{s.busy === "image" ? "Generating" : "Generate image"}</span>
+                {s.busy !== "image" && (
+                  <kbd className="ml-0.5 hidden rounded border border-white/15 bg-white/10 px-1 py-px font-mono text-[10px] font-medium leading-none text-white/55 sm:inline-block">
+                    ⌘↵
+                  </kbd>
+                )}
               </button>
               <button
                 type="button"
                 onClick={onApprove}
                 disabled={approveDisabled}
-                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-line bg-card px-3.5 text-[13px] font-medium text-ink outline-none transition hover:bg-surface focus-visible:ring-2 focus-visible:ring-ink/15 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-card"
+                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-line bg-card px-3.5 text-[13px] font-medium text-ink outline-none transition hover:border-accent/30 hover:bg-surface active:scale-[0.985] focus-visible:ring-2 focus-visible:ring-accent/40 disabled:cursor-not-allowed disabled:opacity-45 disabled:active:scale-100 disabled:hover:border-line disabled:hover:bg-card"
               >
                 {s.busy === "model" ? <Spinner /> : <CubeIcon />}
                 {s.busy === "model" ? "Building" : "Build 3D"}
@@ -314,7 +317,7 @@ export default function Workshop() {
                       onClick={() => onSeedClick(seed)}
                       disabled={genDisabled}
                       title={seed.cached ? `${seed.label} — cached, instant` : seed.label}
-                      className="group inline-flex items-center gap-1.5 rounded-pill border border-line bg-card px-2.5 py-[5px] text-[11.5px] font-medium text-ink-2 transition-all hover:-translate-y-px hover:border-accent-purple/40 hover:bg-surface hover:text-ink hover:shadow-card disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:border-line disabled:hover:bg-card disabled:hover:text-ink-2 disabled:hover:shadow-none"
+                      className="group inline-flex items-center gap-1.5 rounded-pill border border-line bg-card px-2.5 py-[5px] text-[11.5px] font-medium text-ink-2 transition-all hover:-translate-y-px hover:border-accent/40 hover:bg-surface hover:text-ink hover:shadow-card active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:border-line disabled:hover:bg-card disabled:hover:text-ink-2 disabled:hover:shadow-none"
                     >
                       <span
                         className={
@@ -345,7 +348,6 @@ export default function Workshop() {
             <ModelViewer
               ref={viewerRef}
               initialUrl={s.initialGlbUrl}
-              working={s.busy === "model"}
               placeholder="Generate a concept, then build the 3D model."
               className="m-4 mt-3 flex-1"
             />
@@ -353,9 +355,9 @@ export default function Workshop() {
             {s.busy === "model" && (
               <div className="pointer-events-none absolute inset-0 z-20 grid animate-fadeIn place-items-center">
                 <div className="flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-ink/40 px-8 py-7 shadow-pop backdrop-blur-xl">
-                  <div className="relative grid h-14 w-14 place-items-center text-accent-violet">
-                    <span className="absolute inset-0 animate-breathe rounded-full bg-accent-purple/40 blur-lg" />
-                    <span className="absolute inset-0 animate-spinSlow rounded-full border-2 border-white/10 border-t-accent-violet" />
+                  <div className="relative grid h-14 w-14 place-items-center text-accent">
+                    <span className="absolute inset-0 animate-breathe rounded-full bg-accent/20 blur-md" />
+                    <span className="absolute inset-0 animate-spinSlow rounded-full border-2 border-white/10 border-t-accent" />
                     <span className="relative [&_svg]:h-6 [&_svg]:w-6">
                       <CubeIcon />
                     </span>
@@ -411,7 +413,7 @@ export default function Workshop() {
                 )}
                 {s.busy === "image" && (
                   <span className="absolute inset-0 z-10 grid place-items-center overflow-hidden bg-card/70 backdrop-blur-sm">
-                    <span className="absolute inset-y-0 w-1/2 animate-shimmer bg-gradient-to-r from-transparent via-accent-purple/20 to-transparent" />
+                    <span className="absolute inset-y-0 w-1/2 animate-shimmer bg-gradient-to-r from-transparent via-accent/20 to-transparent" />
                     <span className="relative inline-flex items-center gap-1.5 text-[11px] font-medium text-muted">
                       <Spinner />
                       Generating…
@@ -459,23 +461,27 @@ export default function Workshop() {
 function StepNode({ icon, label, state }: { icon: ReactNode; label: string; state: StepState }) {
   const ring =
     state === "done"
-      ? "border-accent-purple bg-accent-purple text-white"
+      ? "border-accent bg-accent text-white"
       : state === "active"
-        ? "border-accent-purple bg-accent-purple/5 text-accent-purple"
+        ? "scale-110 border-accent bg-accent/5 text-accent"
         : "border-line bg-card text-muted-2";
   return (
     <div className="flex items-center gap-2">
       <span
-        className={"relative grid h-6 w-6 place-items-center rounded-full border " + ring}
+        className={
+          "relative grid h-6 w-6 place-items-center rounded-full border transition-all duration-300 ease-out " +
+          ring
+        }
       >
         {state === "active" && (
-          <span className="absolute inset-0 animate-ping rounded-full bg-accent-purple/25" />
+          <span className="absolute inset-0 animate-ping rounded-full bg-accent/25" />
         )}
         <span className="relative">{state === "done" ? <CheckIcon /> : icon}</span>
       </span>
       <span
         className={
-          "text-[12px] font-medium " + (state === "pending" ? "text-muted-2" : "text-ink")
+          "text-[12px] font-medium transition-colors " +
+          (state === "pending" ? "text-muted-2" : "text-ink")
         }
       >
         {label}
@@ -489,22 +495,14 @@ function Connector({ state }: { state: "idle" | "active" | "done" }) {
     <div className="relative mx-1.5 h-px w-10 overflow-hidden rounded-full bg-line sm:w-16">
       <div
         className={
-          "absolute inset-y-0 left-0 rounded-full bg-accent-purple transition-all duration-700 " +
+          "absolute inset-y-0 left-0 rounded-full bg-accent transition-all duration-700 " +
           (state === "done" ? "w-full" : "w-0")
         }
       />
       {state === "active" && (
-        <div className="absolute inset-y-0 w-1/3 animate-flow rounded-full bg-gradient-to-r from-transparent via-accent-purple to-transparent" />
+        <div className="absolute inset-y-0 w-1/3 animate-flow rounded-full bg-gradient-to-r from-transparent via-accent to-transparent" />
       )}
     </div>
-  );
-}
-
-function KeyHint({ label }: { label: string }) {
-  return (
-    <span className="inline-flex items-center rounded-md border border-line bg-surface px-1.5 py-0.5 font-mono text-[10.5px] font-medium text-muted">
-      {label}
-    </span>
   );
 }
 
@@ -591,6 +589,9 @@ function CheckIcon() {
         strokeWidth="2.4"
         strokeLinecap="round"
         strokeLinejoin="round"
+        pathLength={1}
+        style={{ strokeDasharray: 1 }}
+        className="animate-drawIn"
       />
     </svg>
   );

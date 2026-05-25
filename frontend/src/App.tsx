@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import Workshop from "./views/Workshop";
-import Aurora from "./components/Aurora";
 
 function useHealth(intervalMs = 15000): boolean {
   const [ok, setOk] = useState(true);
@@ -30,8 +29,7 @@ function useHealth(intervalMs = 15000): boolean {
 export default function App() {
   return (
     <div className="relative flex h-full flex-col overflow-hidden bg-canvas text-ink">
-      <Aurora className="absolute inset-0 z-0 opacity-50" />
-      <div className="grain pointer-events-none absolute inset-0 z-0 opacity-[0.04] mix-blend-multiply" />
+      <div className="dot-grid pointer-events-none absolute inset-0 z-0" />
       <Header />
       <main className="relative z-10 mx-auto flex w-full max-w-[1560px] flex-1 min-h-0 flex-col px-5 pb-5">
         <Workshop />
@@ -82,17 +80,16 @@ function Header() {
 
 function LogoMark() {
   return (
-    <div className="grid h-7 w-7 place-items-center rounded-[8px] bg-gradient-to-br from-accent-purple to-accent-violet text-white shadow-glow">
-      <svg width="16" height="16" viewBox="0 0 22 22" fill="none" aria-hidden>
-        <path
-          d="M6 14.5L11 5.5L16 14.5"
-          stroke="currentColor"
-          strokeWidth="1.7"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <path d="M8 11h6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-      </svg>
+    <div className="group [perspective:140px]">
+      <div className="grid h-7 w-7 place-items-center rounded-[8px] bg-ink shadow-card transition-transform duration-300 ease-out group-hover:[transform:rotateX(18deg)_rotateY(-22deg)_scale(1.06)]">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <g stroke="#0b0b0d" strokeWidth="0.5" strokeLinejoin="round">
+            <path d="M12 3 L19 7 L12 11 L5 7 Z" fill="#ffffff" fillOpacity="0.95" />
+            <path d="M5 7 L12 11 L12 19.5 L5 15.5 Z" fill="#ffffff" fillOpacity="0.42" />
+            <path d="M19 7 L12 11 L12 19.5 L19 15.5 Z" fill="#ffffff" fillOpacity="0.24" />
+          </g>
+        </svg>
+      </div>
     </div>
   );
 }

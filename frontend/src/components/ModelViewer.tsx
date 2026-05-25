@@ -1,6 +1,5 @@
 import { useEffect, useImperativeHandle, useRef, useState, forwardRef } from "react";
 import { useThreeViewer } from "../hooks/useThreeViewer";
-import Aurora from "./Aurora";
 
 export interface ModelViewerHandle {
   load: (url: string) => Promise<void>;
@@ -9,12 +8,11 @@ export interface ModelViewerHandle {
 interface Props {
   initialUrl?: string | null;
   placeholder?: string;
-  working?: boolean;
   className?: string;
 }
 
 const ModelViewer = forwardRef<ModelViewerHandle, Props>(function ModelViewer(
-  { initialUrl, placeholder = "Awaiting model", working = false, className = "" },
+  { initialUrl, placeholder = "Awaiting model", className = "" },
   ref,
 ) {
   const { containerRef, loadGlb } = useThreeViewer();
@@ -67,14 +65,14 @@ const ModelViewer = forwardRef<ModelViewerHandle, Props>(function ModelViewer(
     const r = e.currentTarget.getBoundingClientRect();
     const x = ((e.clientX - r.left) / r.width) * 100;
     const y = ((e.clientY - r.top) / r.height) * 100;
-    el.style.background = `radial-gradient(320px circle at ${x}% ${y}%, rgba(180,196,255,0.10), transparent 60%)`;
+    el.style.background = `radial-gradient(340px circle at ${x}% ${y}%, rgba(226,230,238,0.08), transparent 60%)`;
   }
 
   function onPointerLeave() {
     const el = spotRef.current;
     if (el) {
       el.style.background =
-        "radial-gradient(320px circle at 50% 36%, rgba(180,196,255,0.05), transparent 60%)";
+        "radial-gradient(340px circle at 50% 34%, rgba(226,230,238,0.04), transparent 60%)";
     }
   }
 
@@ -88,16 +86,15 @@ const ModelViewer = forwardRef<ModelViewerHandle, Props>(function ModelViewer(
         className="absolute inset-0"
         style={{
           background:
-            "radial-gradient(125% 95% at 50% -6%, #1b1d2b 0%, #101120 52%, #07070f 100%)",
+            "radial-gradient(125% 95% at 50% -6%, #1a1b22 0%, #101117 52%, #08080c 100%)",
         }}
       />
-      <Aurora active={working} className="aurora--glow" />
       <div ref={spotRef} className="pointer-events-none absolute inset-0" />
       <div
         className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5"
         style={{
           background:
-            "radial-gradient(58% 52% at 50% 116%, rgba(94,106,210,0.22) 0%, transparent 70%)",
+            "radial-gradient(56% 50% at 50% 116%, rgba(150,160,185,0.14) 0%, transparent 70%)",
         }}
       />
       <div ref={containerRef} className="relative h-full w-full" />

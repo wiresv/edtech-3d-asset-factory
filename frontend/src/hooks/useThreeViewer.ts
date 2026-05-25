@@ -10,13 +10,28 @@ interface SceneState {
   renderer: THREE.WebGLRenderer;
   controls: OrbitControls;
   model: THREE.Object3D | null;
-  spawnBase: THREE.Vector3 | null;
-  spawnAt: number;
+  clipPlane: THREE.Plane;
+  revealAt: number;
+  revealFrom: number;
+  revealTo: number;
   reduceMotion: boolean;
   loader: GLTFLoader;
 }
 
-const SPAWN_MS = 520;
+const REVEAL_MS = 900;
+
+function setClipping(object: THREE.Object3D, planes: THREE.Plane[]): void {
+  object.traverse((node) => {
+    const material = (node as THREE.Mesh).material;
+    if (!material) return;
+    const apply = (m: THREE.Material) => {
+      m.clippingPlanes = planes;
+      m.needsUpdate = true;
+    };
+    if (Array.isArray(material)) material.forEach(apply);
+    else apply(material);
+  });
+}
 
 function disposeMaterial(material: THREE.Material): void {
   for (const value of Object.values(material as unknown as Record<string, unknown>)) {
@@ -82,6 +97,7 @@ export function useThreeViewer(): UseThreeViewerResult {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 0.92;
+    renderer.localClippingEnabled = true;
     renderer.setSize(container.clientWidth, container.clientHeight);
     container.appendChild(renderer.domElement);
 
@@ -115,21 +131,23 @@ export function useThreeViewer(): UseThreeViewerResult {
       renderer,
       controls,
       model: null,
-      spawnBase: null,
-      spawnAt: 0,
+      clipPlane: new THREE.Plane(new THREE.Vector3(0, -1, 0), 0),
+      revealAt: 0,
+      revealFrom: 0,
+      revealTo: 0,
       reduceMotion,
       loader: new GLTFLoader(),
     };
     sceneRef.current = state;
 
     renderer.setAnimationLoop(() => {
-      if (state.model && state.spawnAt && state.spawnBase) {
-        const t = Math.min((performance.now() - state.spawnAt) / SPAWN_MS, 1);
-        const eased = 1 - Math.pow(1 - t, 3);
-        state.model.scale.copy(state.spawnBase).multiplyScalar(0.92 + 0.08 * eased);
+      if (state.model && state.revealAt) {
+        const t = Math.min((performance.now() - state.revealAt) / REVEAL_MS, 1);
+        const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        state.clipPlane.constant = state.revealFrom + (state.revealTo - state.revealFrom) * eased;
         if (t >= 1) {
-          state.model.scale.copy(state.spawnBase);
-          state.spawnAt = 0;
+          setClipping(state.model, []);
+          state.revealAt = 0;
         }
       }
       controls.update();
@@ -177,13 +195,18 @@ export function useThreeViewer(): UseThreeViewerResult {
           s.scene.add(gltf.scene);
           s.model = gltf.scene;
           frame(gltf.scene, s);
+          s.controls.autoRotate = !s.reduceMotion;
           if (s.reduceMotion) {
-            s.spawnAt = 0;
+            setClipping(gltf.scene, []);
+            s.revealAt = 0;
           } else {
-            s.spawnBase = gltf.scene.scale.clone();
-            gltf.scene.scale.copy(s.spawnBase).multiplyScalar(0.92);
-            s.spawnAt = performance.now();
-            s.controls.autoRotate = true;
+            const box = new THREE.Box3().setFromObject(gltf.scene);
+            const margin = Math.max((box.max.y - box.min.y) * 0.02, 0.001);
+            s.revealFrom = box.min.y - margin;
+            s.revealTo = box.max.y + margin;
+            s.clipPlane.constant = s.revealFrom;
+            setClipping(gltf.scene, [s.clipPlane]);
+            s.revealAt = performance.now();
           }
           resolve();
         },

@@ -16,10 +16,7 @@ export default {
         line: "#e7e8ea",
         "line-2": "#f0f1f3",
         accent: {
-          purple: "#5e6ad2",
-          "purple-strong": "#4f59c4",
-          violet: "#8b7cf6",
-          cyan: "#4baeeb",
+          DEFAULT: "#4f5a78",
           red: "#e5484d",
           green: "#30a46c",
           blue: "#3b6ef6",
@@ -35,7 +32,6 @@ export default {
         "card-hover":
           "0 2px 4px -1px rgb(16 17 26 / 0.06), 0 8px 24px -6px rgb(16 17 26 / 0.08)",
         pop: "0 18px 44px -14px rgb(10 11 18 / 0.34), 0 4px 12px -4px rgb(10 11 18 / 0.16)",
-        glow: "0 0 0 1px rgb(94 106 210 / 0.18), 0 8px 30px -8px rgb(94 106 210 / 0.45)",
         ring: "0 0 0 1px rgb(16 17 26 / 0.04)",
       },
       fontFamily: {
@@ -44,10 +40,6 @@ export default {
         mono: ["ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
       keyframes: {
-        pulseSoft: {
-          "0%, 100%": { opacity: "1" },
-          "50%": { opacity: "0.5" },
-        },
         fadeIn: {
           from: { opacity: "0" },
           to: { opacity: "1" },
@@ -74,23 +66,27 @@ export default {
         },
         breathe: {
           "0%, 100%": { opacity: "0.35", transform: "scale(1)" },
-          "50%": { opacity: "0.9", transform: "scale(1.06)" },
+          "50%": { opacity: "0.85", transform: "scale(1.05)" },
         },
         spinSlow: {
           from: { transform: "rotate(0deg)" },
           to: { transform: "rotate(360deg)" },
         },
+        drawIn: {
+          from: { strokeDashoffset: "1" },
+          to: { strokeDashoffset: "0" },
+        },
       },
       animation: {
-        pulseSoft: "pulseSoft 1.6s ease-in-out infinite",
         fadeIn: "fadeIn 0.35s ease both",
         riseIn: "riseIn 0.5s cubic-bezier(0.22,1,0.36,1) both",
         popIn: "popIn 0.22s cubic-bezier(0.22,1,0.36,1) both",
         revealIn: "revealIn 0.5s cubic-bezier(0.22,1,0.36,1) both",
-        flow: "flow 1.5s linear infinite",
+        flow: "flow 1.6s linear infinite",
         shimmer: "shimmer 1.7s ease-in-out infinite",
         breathe: "breathe 2.4s ease-in-out infinite",
         spinSlow: "spinSlow 9s linear infinite",
+        drawIn: "drawIn 0.45s ease-out forwards",
       },
     },
   },
