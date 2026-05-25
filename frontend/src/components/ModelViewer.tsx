@@ -1,5 +1,6 @@
 import { useEffect, useImperativeHandle, useState, forwardRef } from "react";
 import { useThreeViewer } from "../hooks/useThreeViewer";
+import Aurora from "./Aurora";
 
 export interface ModelViewerHandle {
   load: (url: string) => Promise<void>;
@@ -8,11 +9,12 @@ export interface ModelViewerHandle {
 interface Props {
   initialUrl?: string | null;
   placeholder?: string;
+  working?: boolean;
   className?: string;
 }
 
 const ModelViewer = forwardRef<ModelViewerHandle, Props>(function ModelViewer(
-  { initialUrl, placeholder = "Awaiting model", className = "" },
+  { initialUrl, placeholder = "Awaiting model", working = false, className = "" },
   ref,
 ) {
   const { containerRef, loadGlb } = useThreeViewer();
@@ -67,11 +69,12 @@ const ModelViewer = forwardRef<ModelViewerHandle, Props>(function ModelViewer(
             "radial-gradient(125% 95% at 50% -8%, #ffffff 0%, #f3f4f7 46%, #e7e9ee 100%)",
         }}
       />
+      <Aurora active={working} className="opacity-70" />
       <div
         className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3"
         style={{
           background:
-            "radial-gradient(60% 80% at 50% 120%, rgb(11 11 13 / 0.10) 0%, transparent 70%)",
+            "radial-gradient(60% 80% at 50% 120%, rgb(11 11 13 / 0.12) 0%, transparent 70%)",
         }}
       />
       <div ref={containerRef} className="relative h-full w-full" />
@@ -79,10 +82,10 @@ const ModelViewer = forwardRef<ModelViewerHandle, Props>(function ModelViewer(
         <div className="pointer-events-none absolute inset-0 grid place-items-center">
           <span
             className={
-              "rounded-pill border px-3 py-1.5 text-[12px] font-medium backdrop-blur-sm " +
+              "rounded-pill border px-3 py-1.5 text-[12px] font-medium backdrop-blur-md " +
               (status.tone === "error"
                 ? "border-accent-red/20 bg-accent-red/10 text-accent-red"
-                : "border-line bg-card/80 text-muted")
+                : "border-line bg-card/70 text-muted")
             }
           >
             {status.text}

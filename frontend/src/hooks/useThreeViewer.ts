@@ -61,6 +61,12 @@ export function useThreeViewer(): UseThreeViewerResult {
     container.appendChild(renderer.domElement);
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.55;
+    const stopAutoRotate = () => {
+      controls.autoRotate = false;
+    };
+    controls.addEventListener("start", stopAutoRotate);
     scene.add(new THREE.HemisphereLight(0xffffff, 0xd9dde4, 2.1));
     const key = new THREE.DirectionalLight(0xffffff, 1.7);
     key.position.set(3, 4, 2);
@@ -96,6 +102,8 @@ export function useThreeViewer(): UseThreeViewerResult {
 
     return () => {
       ro.disconnect();
+      controls.removeEventListener("start", stopAutoRotate);
+      controls.dispose();
       renderer.setAnimationLoop(null);
       renderer.dispose();
       if (renderer.domElement.parentElement === container) {
@@ -119,6 +127,7 @@ export function useThreeViewer(): UseThreeViewerResult {
           s.scene.add(gltf.scene);
           s.model = gltf.scene;
           frame(gltf.scene, s);
+          s.controls.autoRotate = true;
           resolve();
         },
         undefined,

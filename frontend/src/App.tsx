@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import Workshop from "./views/Workshop";
+import Aurora from "./components/Aurora";
 
 function useHealth(intervalMs = 15000): boolean {
   const [ok, setOk] = useState(true);
@@ -28,9 +29,11 @@ function useHealth(intervalMs = 15000): boolean {
 
 export default function App() {
   return (
-    <div className="flex h-full flex-col bg-canvas text-ink">
+    <div className="relative flex h-full flex-col overflow-hidden bg-canvas text-ink">
+      <Aurora className="absolute inset-0 z-0 opacity-50" />
+      <div className="grain pointer-events-none absolute inset-0 z-0 opacity-[0.04] mix-blend-multiply" />
       <Header />
-      <main className="mx-auto flex w-full max-w-[1560px] flex-1 min-h-0 flex-col px-5 pb-5">
+      <main className="relative z-10 mx-auto flex w-full max-w-[1560px] flex-1 min-h-0 flex-col px-5 pb-5">
         <Workshop />
       </main>
     </div>
@@ -40,21 +43,21 @@ export default function App() {
 function Header() {
   const connected = useHealth();
   return (
-    <header className="mx-auto flex w-full max-w-[1560px] shrink-0 items-center justify-between px-5 pb-3 pt-4">
+    <header className="relative z-10 mx-auto flex w-full max-w-[1560px] shrink-0 items-center justify-between px-5 pb-3 pt-4">
       <div className="flex items-center gap-2.5">
         <LogoMark />
         <div className="flex items-baseline gap-2">
           <span className="font-display text-[15px] font-semibold tracking-[-0.01em] text-ink">
             Workshop
           </span>
-          <span className="hidden text-[12px] font-medium text-muted-2 sm:inline">
+          <span className="hidden font-mono text-[11px] font-medium text-muted-2 sm:inline">
             asset-factory
           </span>
         </div>
       </div>
       <div
         className={
-          "flex items-center gap-2 rounded-pill border px-2.5 py-1 text-[11.5px] font-medium transition-colors " +
+          "flex items-center gap-2 rounded-pill border px-2.5 py-1 text-[11.5px] font-medium backdrop-blur-sm transition-colors " +
           (connected
             ? "border-accent-green/20 bg-accent-green/[0.07] text-accent-green"
             : "border-accent-red/20 bg-accent-red/[0.07] text-accent-red")
@@ -79,16 +82,16 @@ function Header() {
 
 function LogoMark() {
   return (
-    <div className="grid h-7 w-7 place-items-center rounded-[8px] bg-ink text-paper shadow-card">
+    <div className="grid h-7 w-7 place-items-center rounded-[8px] bg-gradient-to-br from-accent-purple to-accent-violet text-white shadow-glow">
       <svg width="16" height="16" viewBox="0 0 22 22" fill="none" aria-hidden>
         <path
           d="M6 14.5L11 5.5L16 14.5"
           stroke="currentColor"
-          strokeWidth="1.6"
+          strokeWidth="1.7"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
-        <path d="M8 11h6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        <path d="M8 11h6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
       </svg>
     </div>
   );
