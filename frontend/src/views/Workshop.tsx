@@ -218,7 +218,7 @@ export default function Workshop() {
         <StepNode icon={<CubeIcon />} label="Model" state={modelState} />
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-[clamp(340px,26vw,400px)_minmax(0,1fr)]">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-rows-[minmax(0,1fr)] lg:grid-cols-[clamp(340px,26vw,400px)_minmax(0,1fr)]">
         <aside className="flex min-h-0 animate-riseIn" style={{ animationDelay: "60ms" }}>
           <Card className="flex min-h-0 w-full flex-col overflow-hidden">
             <span className="block text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-2">
@@ -243,7 +243,7 @@ export default function Workshop() {
                 type="button"
                 onClick={onGenerateImage}
                 disabled={genDisabled}
-                className="group inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg bg-ink px-3 text-[13px] font-medium text-white shadow-[0_1px_2px_0_rgb(16_17_26/0.06),inset_0_1px_0_0_rgb(255_255_255/0.1)] outline-none transition hover:bg-[#1c1c22] active:scale-[0.985] focus-visible:ring-2 focus-visible:ring-ink/25 disabled:cursor-wait disabled:opacity-60 disabled:active:scale-100"
+                className="group inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-ink px-3 text-[13px] font-medium text-white shadow-[0_1px_2px_0_rgb(16_17_26/0.06),inset_0_1px_0_0_rgb(255_255_255/0.1)] outline-none transition hover:bg-[#1c1c22] active:scale-[0.985] focus-visible:ring-2 focus-visible:ring-ink/25 disabled:cursor-wait disabled:opacity-60 disabled:active:scale-100"
               >
                 <span className="transition-transform duration-300 group-hover:rotate-[16deg] group-hover:scale-110">
                   {s.busy === "image" ? <Spinner /> : <Sparkles />}
@@ -260,7 +260,7 @@ export default function Workshop() {
                 onClick={onApprove}
                 disabled={approveDisabled}
                 className={
-                  "group inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg px-3 text-[13px] font-medium outline-none transition active:scale-[0.985] focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:active:scale-100 " +
+                  "group inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg px-3 text-[13px] font-medium outline-none transition active:scale-[0.985] focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:active:scale-100 " +
                   (approveDisabled
                     ? "border border-line bg-card text-muted-2"
                     : "bg-ink text-white shadow-[0_1px_2px_0_rgb(16_17_26/0.06),inset_0_1px_0_0_rgb(255_255_255/0.1)] ring-1 ring-accent/45 hover:bg-[#1c1c22]")
@@ -497,7 +497,7 @@ function StepNode({ icon, label, state }: { icon: ReactNode; label: string; stat
     <div className="flex items-center gap-2">
       <span
         className={
-          "relative grid h-7 w-7 place-items-center rounded-full border transition-all duration-300 ease-out " +
+          "relative grid h-6 w-6 place-items-center rounded-full border transition-all duration-300 ease-out " +
           ring
         }
       >

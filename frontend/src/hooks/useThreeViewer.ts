@@ -59,7 +59,7 @@ function frame(object: THREE.Object3D, s: SceneState): void {
   const maxSize = Math.max(size.x, size.y, size.z, 1);
   const fit = maxSize / (2 * Math.tan(THREE.MathUtils.degToRad(s.camera.fov) / 2));
   const dir = new THREE.Vector3(1, 0.8, 1).normalize();
-  s.camera.position.copy(center).add(dir.multiplyScalar(fit * 1.6));
+  s.camera.position.copy(center).add(dir.multiplyScalar(fit * 1.2));
   s.camera.near = Math.max(fit / 100, 0.001);
   s.camera.far = Math.max(fit * 100, maxSize * 10);
   s.camera.lookAt(center);
