@@ -1,0 +1,10 @@
+id: dna_double_helix_001
+subject: biology
+object: DNA double helix
+grade_band: "9-12"
+style: conceptual
+learning_goal: Identify the twisted double-helix shape, the paired bases, and the sugar-phosphate backbone.
+exports: ["web", "unity", "unreal"]
+qa:
+  max_triangles: 180000
+  max_glb_mb: 30

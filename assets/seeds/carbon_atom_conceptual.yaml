@@ -1,0 +1,10 @@
+id: carbon_atom_001
+subject: chemistry
+object: carbon atom model
+grade_band: "6-8"
+style: conceptual
+learning_goal: Identify the central nucleus and the electrons arranged in shells around it.
+exports: ["web", "unity", "unreal"]
+qa:
+  max_triangles: 120000
+  max_glb_mb: 22

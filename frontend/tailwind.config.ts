@@ -21,6 +21,8 @@ export default {
           green: "#30a46c",
           blue: "#3b6ef6",
           amber: "#e0901a",
+          violet: "#8b5cf6",
+          rose: "#f43f5e",
         },
       },
       borderRadius: {

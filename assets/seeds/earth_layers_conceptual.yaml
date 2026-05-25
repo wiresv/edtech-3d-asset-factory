@@ -1,0 +1,10 @@
+id: earth_layers_001
+subject: earth_science
+object: Earth's internal layers
+grade_band: "6-8"
+style: conceptual
+learning_goal: Identify the crust, mantle, outer core, and inner core in a cutaway of Earth.
+exports: ["web", "unity", "unreal"]
+qa:
+  max_triangles: 160000
+  max_glb_mb: 30

@@ -1,0 +1,10 @@
+id: methane_molecule_001
+subject: chemistry
+object: methane molecule
+grade_band: "9-12"
+style: conceptual
+learning_goal: Recognize the tetrahedral arrangement of four hydrogen atoms around a central carbon atom.
+exports: ["web", "unity", "unreal"]
+qa:
+  max_triangles: 120000
+  max_glb_mb: 22

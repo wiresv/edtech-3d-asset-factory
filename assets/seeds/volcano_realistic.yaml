@@ -1,0 +1,10 @@
+id: volcano_001
+subject: earth_science
+object: volcano
+grade_band: "6-8"
+style: realistic
+learning_goal: Identify the cone shape, summit crater, and central vent of a volcano.
+exports: ["web", "unity", "unreal"]
+qa:
+  max_triangles: 180000
+  max_glb_mb: 35

@@ -1,0 +1,10 @@
+id: mars_001
+subject: astronomy
+object: Mars
+grade_band: "6-8"
+style: realistic
+learning_goal: Recognize Mars as a rocky planet with a reddish surface and bright polar ice caps.
+exports: ["web", "unity", "unreal"]
+qa:
+  max_triangles: 160000
+  max_glb_mb: 30

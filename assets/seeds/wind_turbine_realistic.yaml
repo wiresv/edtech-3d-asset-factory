@@ -1,0 +1,10 @@
+id: wind_turbine_001
+subject: physics
+object: wind turbine
+grade_band: "6-8"
+style: realistic
+learning_goal: Identify the blades, rotor, nacelle, and tower that turn wind into electrical energy.
+exports: ["web", "unity", "unreal"]
+qa:
+  max_triangles: 160000
+  max_glb_mb: 30

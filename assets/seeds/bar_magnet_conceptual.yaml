@@ -1,0 +1,10 @@
+id: bar_magnet_001
+subject: physics
+object: bar magnet
+grade_band: "6-8"
+style: conceptual
+learning_goal: Identify the north and south poles at the ends of a bar magnet.
+exports: ["web", "unity", "unreal"]
+qa:
+  max_triangles: 100000
+  max_glb_mb: 20

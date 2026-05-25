@@ -16,7 +16,7 @@ export interface Run3dResponse {
 export interface SeedPrompt {
   id: string;
   label: string;
-  subject: "biology" | "physics" | "earth_science";
+  subject: "biology" | "chemistry" | "physics" | "earth_science" | "astronomy";
   style: "conceptual" | "realistic";
   prompt: string;
   cached: boolean;

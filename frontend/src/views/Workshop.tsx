@@ -6,8 +6,10 @@ import { api, type SeedPrompt } from "../api";
 
 const SUBJECT_DOT: Record<SeedPrompt["subject"], string> = {
   biology: "bg-accent-green",
+  chemistry: "bg-accent-violet",
   physics: "bg-accent-blue",
   earth_science: "bg-accent-amber",
+  astronomy: "bg-accent-rose",
 };
 
 type StepState = "pending" | "active" | "done";

@@ -1,0 +1,10 @@
+id: moon_001
+subject: astronomy
+object: Moon
+grade_band: "6-8"
+style: realistic
+learning_goal: Recognize the Moon's spherical shape and its crater-covered surface.
+exports: ["web", "unity", "unreal"]
+qa:
+  max_triangles: 160000
+  max_glb_mb: 30

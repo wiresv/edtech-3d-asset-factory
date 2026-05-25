@@ -1,0 +1,10 @@
+id: salt_crystal_lattice_001
+subject: chemistry
+object: salt crystal lattice
+grade_band: "9-12"
+style: conceptual
+learning_goal: Identify the alternating sodium and chloride ions in a repeating cubic lattice.
+exports: ["web", "unity", "unreal"]
+qa:
+  max_triangles: 150000
+  max_glb_mb: 25

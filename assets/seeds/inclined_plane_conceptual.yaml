@@ -1,0 +1,10 @@
+id: inclined_plane_001
+subject: physics
+object: inclined plane
+grade_band: "6-8"
+style: conceptual
+learning_goal: Identify the sloped ramp surface and how it reduces the force needed to raise a load.
+exports: ["web", "unity", "unreal"]
+qa:
+  max_triangles: 100000
+  max_glb_mb: 20

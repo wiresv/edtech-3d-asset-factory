@@ -15,7 +15,7 @@ EXPECTED_EXPORTS = {
 def test_all_seed_specs_validate():
     seed_paths = sorted(SEED_DIR.glob("*.yaml"))
 
-    assert len(seed_paths) == 10
+    assert len(seed_paths) == 25
     for path in seed_paths:
         spec = load_asset_spec(path)
         assert spec.id

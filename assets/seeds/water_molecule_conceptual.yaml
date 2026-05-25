@@ -1,0 +1,10 @@
+id: water_molecule_001
+subject: chemistry
+object: water molecule
+grade_band: "6-8"
+style: conceptual
+learning_goal: Identify the two hydrogen atoms, the oxygen atom, and the bent shape of a water molecule.
+exports: ["web", "unity", "unreal"]
+qa:
+  max_triangles: 100000
+  max_glb_mb: 20
