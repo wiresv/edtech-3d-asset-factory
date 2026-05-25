@@ -40,6 +40,7 @@ export default function Workshop() {
   const [elapsed, setElapsed] = useState(0);
   const [conceptOpen, setConceptOpen] = useState(false);
   const viewerRef = useRef<ModelViewerHandle>(null);
+  const buildAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (s.busy === "none") {
@@ -149,6 +150,8 @@ export default function Workshop() {
   async function onApprove() {
     if (!s.currentRunId) return;
     const fast = s.fast;
+    const controller = new AbortController();
+    buildAbortRef.current = controller;
     setS((p) => ({
       ...p,
       busy: "model",
@@ -160,7 +163,7 @@ export default function Workshop() {
       },
     }));
     try {
-      const { glb_url } = await api.postRun3d(s.currentRunId, fast);
+      const { glb_url } = await api.postRun3d(s.currentRunId, fast, controller.signal);
       await viewerRef.current?.load(glb_url);
       setS((p) => ({
         ...p,
@@ -169,13 +172,23 @@ export default function Workshop() {
         status: { text: "Model ready.", tone: "ok" },
       }));
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setS((p) => ({
-        ...p,
-        busy: "none",
-        status: { text: `3D failed: ${msg}`, tone: "error" },
-      }));
+      if (controller.signal.aborted) {
+        setS((p) => ({ ...p, busy: "none", status: { text: "Build canceled.", tone: "idle" } }));
+      } else {
+        const msg = err instanceof Error ? err.message : String(err);
+        setS((p) => ({
+          ...p,
+          busy: "none",
+          status: { text: `3D failed: ${msg}`, tone: "error" },
+        }));
+      }
+    } finally {
+      buildAbortRef.current = null;
     }
+  }
+
+  function onCancelBuild() {
+    buildAbortRef.current?.abort();
   }
 
   const genDisabled = s.busy !== "none";
@@ -230,7 +243,7 @@ export default function Workshop() {
                 type="button"
                 onClick={onGenerateImage}
                 disabled={genDisabled}
-                className="group inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-ink px-3 text-[13px] font-medium text-white shadow-[0_1px_2px_0_rgb(16_17_26/0.06),inset_0_1px_0_0_rgb(255_255_255/0.1)] outline-none transition hover:bg-[#1c1c22] active:scale-[0.985] focus-visible:ring-2 focus-visible:ring-ink/25 disabled:cursor-wait disabled:opacity-60 disabled:active:scale-100"
+                className="group inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg bg-ink px-3 text-[13px] font-medium text-white shadow-[0_1px_2px_0_rgb(16_17_26/0.06),inset_0_1px_0_0_rgb(255_255_255/0.1)] outline-none transition hover:bg-[#1c1c22] active:scale-[0.985] focus-visible:ring-2 focus-visible:ring-ink/25 disabled:cursor-wait disabled:opacity-60 disabled:active:scale-100"
               >
                 <span className="transition-transform duration-300 group-hover:rotate-[16deg] group-hover:scale-110">
                   {s.busy === "image" ? <Spinner /> : <Sparkles />}
@@ -246,10 +259,17 @@ export default function Workshop() {
                 type="button"
                 onClick={onApprove}
                 disabled={approveDisabled}
-                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-line bg-card px-3.5 text-[13px] font-medium text-ink outline-none transition hover:border-accent/30 hover:bg-surface active:scale-[0.985] focus-visible:ring-2 focus-visible:ring-accent/40 disabled:cursor-not-allowed disabled:opacity-45 disabled:active:scale-100 disabled:hover:border-line disabled:hover:bg-card"
+                className={
+                  "group inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg px-3 text-[13px] font-medium outline-none transition active:scale-[0.985] focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:active:scale-100 " +
+                  (approveDisabled
+                    ? "border border-line bg-card text-muted-2"
+                    : "bg-ink text-white shadow-[0_1px_2px_0_rgb(16_17_26/0.06),inset_0_1px_0_0_rgb(255_255_255/0.1)] ring-1 ring-accent/45 hover:bg-[#1c1c22]")
+                }
               >
-                {s.busy === "model" ? <Spinner /> : <CubeIcon />}
-                {s.busy === "model" ? "Building" : "Build 3D"}
+                <span className="transition-transform duration-300 group-hover:[transform:rotateX(20deg)_rotateY(-26deg)_scale(1.1)]">
+                  {s.busy === "model" ? <Spinner /> : <CubeIcon />}
+                </span>
+                <span>{s.busy === "model" ? "Building" : "Build 3D"}</span>
               </button>
             </div>
 
@@ -371,6 +391,14 @@ export default function Workshop() {
                   <div className="font-mono text-[24px] font-semibold tabular-nums text-white">
                     {elapsedLabel}
                   </div>
+                  <button
+                    type="button"
+                    onClick={onCancelBuild}
+                    className="pointer-events-auto mt-1 inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-[12px] font-medium text-white/75 outline-none transition hover:border-white/30 hover:bg-white/10 hover:text-white active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-white/30"
+                  >
+                    <CancelIcon />
+                    Cancel
+                  </button>
                 </div>
               </div>
             )}
@@ -469,19 +497,47 @@ function StepNode({ icon, label, state }: { icon: ReactNode; label: string; stat
     <div className="flex items-center gap-2">
       <span
         className={
-          "relative grid h-6 w-6 place-items-center rounded-full border transition-all duration-300 ease-out " +
+          "relative grid h-7 w-7 place-items-center rounded-full border transition-all duration-300 ease-out " +
           ring
         }
       >
         {state === "active" && (
-          <span className="absolute inset-0 animate-ping rounded-full bg-accent/25" />
+          <svg
+            className="absolute -inset-1 animate-spin [animation-duration:1.3s]"
+            viewBox="0 0 40 40"
+            fill="none"
+            aria-hidden
+          >
+            <circle
+              cx="20"
+              cy="20"
+              r="18"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              className="text-accent/15"
+            />
+            <circle
+              cx="20"
+              cy="20"
+              r="18"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeDasharray="26 95"
+              className="text-accent"
+            />
+          </svg>
         )}
         <span className="relative">{state === "done" ? <CheckIcon /> : icon}</span>
       </span>
       <span
         className={
-          "text-[12px] font-medium transition-colors " +
-          (state === "pending" ? "text-muted-2" : "text-ink")
+          "text-[12px] transition-colors " +
+          (state === "active"
+            ? "font-semibold text-ink"
+            : state === "done"
+              ? "font-medium text-ink"
+              : "font-medium text-muted-2")
         }
       >
         {label}
@@ -492,7 +548,7 @@ function StepNode({ icon, label, state }: { icon: ReactNode; label: string; stat
 
 function Connector({ state }: { state: "idle" | "active" | "done" }) {
   return (
-    <div className="relative mx-1.5 h-px w-10 overflow-hidden rounded-full bg-line sm:w-16">
+    <div className="relative mx-1.5 h-[3px] w-10 rounded-full bg-line sm:w-16">
       <div
         className={
           "absolute inset-y-0 left-0 rounded-full bg-accent transition-all duration-700 " +
@@ -500,7 +556,7 @@ function Connector({ state }: { state: "idle" | "active" | "done" }) {
         }
       />
       {state === "active" && (
-        <div className="absolute inset-y-0 w-1/3 animate-flow rounded-full bg-gradient-to-r from-transparent via-accent to-transparent" />
+        <div className="absolute top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 animate-travel rounded-full bg-accent" />
       )}
     </div>
   );
@@ -521,6 +577,19 @@ function Sparkles() {
       <path
         d="M12 3l1.6 4.6L18 9l-4.4 1.4L12 15l-1.6-4.6L6 9l4.4-1.4L12 3zm7 9l.9 2.4L22 15l-2.1.6L19 18l-.9-2.4L16 15l2.1-.6L19 12z"
         fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function CancelIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M6 6l12 12M18 6L6 18"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
       />
     </svg>
   );

@@ -152,9 +152,13 @@ class _SPAHandler(http.server.SimpleHTTPRequestHandler):
 
         outcome: dict[str, object] = {}
 
+        holder: dict[str, object] = {}
+
         def work() -> None:
             try:
-                outcome["value"] = self._run_3d(run_id, fast)
+                outcome["value"] = self._run_3d(
+                    run_id, fast, on_start=lambda p: holder.__setitem__("proc", p)
+                )
             except Exception as exc:  # noqa: BLE001
                 outcome["error"] = str(exc) or exc.__class__.__name__
 
@@ -162,7 +166,7 @@ class _SPAHandler(http.server.SimpleHTTPRequestHandler):
         worker.start()
         try:
             while True:
-                worker.join(timeout=10)
+                worker.join(timeout=2)
                 if not worker.is_alive():
                     break
                 self.wfile.write(b'{"status":"working"}\n')
@@ -175,6 +179,8 @@ class _SPAHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(json.dumps(final).encode("utf-8") + b"\n")
             self.wfile.flush()
         except (BrokenPipeError, ConnectionResetError):
+            # Client canceled (aborted the request): stop the GPU build.
+            _terminate(holder.get("proc"))
             return
 
     def _materialize_seed(self, query: dict[str, list[str]]) -> dict:
@@ -212,7 +218,7 @@ class _SPAHandler(http.server.SimpleHTTPRequestHandler):
         )
         return {"run_id": run_id, "image_url": f"/workshop/{run_id}/image/concept.png"}
 
-    def _run_3d(self, run_id: str, fast: bool) -> dict:
+    def _run_3d(self, run_id: str, fast: bool, on_start=None) -> dict:
         from asset_factory.runners.base import RunnerRequest
         from asset_factory.runners.trellis import TrellisCommandRunner
 
@@ -225,7 +231,8 @@ class _SPAHandler(http.server.SimpleHTTPRequestHandler):
                 concept_image=image_path,
                 output_dir=run_dir / "trellis",
                 resolution=512 if fast else 1024,
-            )
+            ),
+            on_start=on_start,
         )
         return {"glb_url": f"/workshop/{run_id}/trellis/raw.glb"}
 
@@ -273,6 +280,17 @@ def _under(path: Path, root: Path) -> bool:
     except ValueError:
         return False
     return True
+
+
+def _terminate(proc: object) -> None:
+    """Stop a running build subprocess. SIGTERM is signal-proxied by `docker run`
+    to the container so the GPU work actually stops and `--rm` cleans up."""
+    if proc is None:
+        return
+    try:
+        proc.terminate()  # type: ignore[attr-defined]
+    except (ProcessLookupError, OSError):
+        pass
 
 
 def serve_workshop(runs_root: Path, port: int) -> None:

@@ -74,6 +74,28 @@ out.mkdir(parents=True, exist_ok=True)
     ]
 
 
+def test_trellis_runner_on_start_can_terminate_build(tmp_path: Path, monkeypatch):
+    script = tmp_path / "slow_trellis.py"
+    script.write_text("import time\ntime.sleep(30)\n", encoding="utf-8")
+    monkeypatch.setenv("TRELLIS2_COMMAND", f"{sys.executable} {script} {{image}} {{output}}")
+    image = tmp_path / "concept.png"
+    image.write_bytes(b"png")
+    output_dir = tmp_path / "trellis"
+
+    runner = TrellisCommandRunner.from_env()
+    with pytest.raises(RuntimeError, match="TRELLIS command failed; see"):
+        runner.run(
+            RunnerRequest(concept_image=image, output_dir=output_dir),
+            on_start=lambda proc: proc.terminate(),
+        )
+
+    report = json.loads((output_dir / "raw_report.json").read_text(encoding="utf-8"))
+    assert report["success"] is False
+    assert report["returncode"] is not None
+    assert report["returncode"] != 0
+    assert not (output_dir / "raw.glb").exists()
+
+
 def test_trellis_runner_preserves_placeholder_paths_with_spaces(tmp_path: Path, monkeypatch):
     script = tmp_path / "fake_trellis.py"
     script.write_text(

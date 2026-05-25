@@ -6,6 +6,7 @@ import shlex
 import string
 import subprocess
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -35,7 +36,11 @@ class TrellisCommandRunner:
             )
         return cls(command_template=command_template)
 
-    def run(self, request: RunnerRequest) -> RunnerResult:
+    def run(
+        self,
+        request: RunnerRequest,
+        on_start: Callable[[subprocess.Popen[str]], None] | None = None,
+    ) -> RunnerResult:
         request.output_dir.mkdir(parents=True, exist_ok=True)
         raw_glb_path = request.output_dir / "raw.glb"
         report_path = request.output_dir / "raw_report.json"
@@ -52,18 +57,19 @@ class TrellisCommandRunner:
         try:
             command_args = _build_command_args(self.command_template, request)
             command = shlex.join(command_args)
-            completed = subprocess.run(
+            process = subprocess.Popen(
                 command_args,
-                check=False,
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
             )
-            returncode = completed.returncode
-            stdout = completed.stdout
-            stderr = completed.stderr
-            if completed.returncode != 0:
+            if on_start is not None:
+                on_start(process)
+            stdout, stderr = process.communicate()
+            returncode = process.returncode
+            if returncode != 0:
                 error_type = "NonZeroReturnCodeError"
-                error_message = f"TRELLIS command exited with status {completed.returncode}"
+                error_message = f"TRELLIS command exited with status {returncode}"
             elif not raw_glb_path.exists():
                 error_type = "MissingRawGlbError"
                 error_message = f"TRELLIS command completed but did not create {raw_glb_path}"

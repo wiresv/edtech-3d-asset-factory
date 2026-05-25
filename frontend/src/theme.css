@@ -55,7 +55,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-flow,
+  .animate-travel,
   .animate-shimmer,
   .animate-breathe,
   .animate-spinSlow {

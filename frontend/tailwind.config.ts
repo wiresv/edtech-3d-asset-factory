@@ -56,9 +56,10 @@ export default {
           from: { opacity: "0", transform: "scale(1.03)" },
           to: { opacity: "1", transform: "scale(1)" },
         },
-        flow: {
-          from: { transform: "translateX(-130%)" },
-          to: { transform: "translateX(360%)" },
+        travel: {
+          "0%": { left: "-10%", opacity: "0" },
+          "20%, 80%": { opacity: "1" },
+          "100%": { left: "110%", opacity: "0" },
         },
         shimmer: {
           from: { transform: "translateX(-100%)" },
@@ -82,7 +83,7 @@ export default {
         riseIn: "riseIn 0.5s cubic-bezier(0.22,1,0.36,1) both",
         popIn: "popIn 0.22s cubic-bezier(0.22,1,0.36,1) both",
         revealIn: "revealIn 0.5s cubic-bezier(0.22,1,0.36,1) both",
-        flow: "flow 1.6s linear infinite",
+        travel: "travel 1.5s ease-in-out infinite",
         shimmer: "shimmer 1.7s ease-in-out infinite",
         breathe: "breathe 2.4s ease-in-out infinite",
         spinSlow: "spinSlow 9s linear infinite",

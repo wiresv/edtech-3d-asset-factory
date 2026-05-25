@@ -33,11 +33,16 @@ async function postJSON<T>(url: string, body: unknown): Promise<T> {
   return data;
 }
 
-async function streamRun3d(run_id: string, fast: boolean): Promise<Run3dResponse> {
+async function streamRun3d(
+  run_id: string,
+  fast: boolean,
+  signal?: AbortSignal,
+): Promise<Run3dResponse> {
   const r = await fetch("/api/run3d", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ run_id, fast }),
+    signal,
   });
   if (!r.ok || !r.body) {
     throw new Error(`HTTP ${r.status}${r.statusText ? " " + r.statusText : ""}`);
@@ -86,5 +91,6 @@ export const api = {
     getJSON<ImageResponse>("/api/seed-image?id=" + encodeURIComponent(id)),
   postImage: (prompt: string) =>
     postJSON<ImageResponse>("/api/image", { prompt }),
-  postRun3d: (run_id: string, fast: boolean) => streamRun3d(run_id, fast),
+  postRun3d: (run_id: string, fast: boolean, signal?: AbortSignal) =>
+    streamRun3d(run_id, fast, signal),
 };
