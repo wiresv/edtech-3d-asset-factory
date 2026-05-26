@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import shutil
+from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -18,7 +19,7 @@ from asset_factory.pipeline import finalize_asset, generate_asset, prepare_asset
 from asset_factory.qa import run_qa
 from asset_factory.runners.base import RunnerRequest
 from asset_factory.runners.mock import MockRunner
-from asset_factory.specs import load_asset_spec
+from asset_factory.specs import load_asset_spec, seed_spec_paths
 
 app = typer.Typer(help="Generate educational 3D asset bundles from science specs.")
 
@@ -264,6 +265,47 @@ def precache_seeds(
             continue
         typer.echo(f"cache {spec.id} …")
         generator.generate(build_image_prompt(spec), png, prompt_path)
+        typer.echo(f"done  {spec.id}")
+
+
+def _half_per_subject(specs: list[AssetSpec]) -> list[AssetSpec]:
+    by_subject: dict[str, list[AssetSpec]] = defaultdict(list)
+    for spec in specs:
+        by_subject[spec.subject].append(spec)
+    return [spec for group in by_subject.values() for spec in group[: len(group) // 2]]
+
+
+@app.command()
+def precache_seed_models(
+    seeds_dir: Annotated[Path, typer.Option()] = Path("assets/seeds"),
+    force: Annotated[bool, typer.Option()] = False,
+) -> None:
+    """Pre-build cached GLBs for half of each subject so those workshop seeds load 3D instantly."""
+    import tempfile
+
+    from asset_factory.prompts import build_image_prompt
+    from asset_factory.runners.trellis import TrellisCommandRunner
+
+    cache_dir = seeds_dir / "cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    selected = _half_per_subject([load_asset_spec(path) for path in seed_spec_paths(seeds_dir)])
+
+    image_generator = OpenAIImageGenerator()
+    runner = TrellisCommandRunner.from_env()
+    for spec in selected:
+        glb = cache_dir / f"{spec.id}.glb"
+        if glb.exists() and not force:
+            typer.echo(f"skip  {spec.id}")
+            continue
+        png = cache_dir / f"{spec.id}.png"
+        if not png.exists():
+            image_generator.generate(build_image_prompt(spec), png, cache_dir / f"{spec.id}.txt")
+        typer.echo(f"build {spec.id} …")
+        with tempfile.TemporaryDirectory() as tmp:
+            result = runner.run(
+                RunnerRequest(concept_image=png, output_dir=Path(tmp), resolution=1024)
+            )
+            shutil.move(str(result.raw_glb_path), glb)
         typer.echo(f"done  {spec.id}")
 
 

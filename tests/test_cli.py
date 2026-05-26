@@ -3,7 +3,8 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
-from asset_factory.cli import app
+from asset_factory.cli import _half_per_subject, app
+from asset_factory.models import AssetSpec, ExportProfile, QaThresholds, ScienceSubject, StyleMode
 
 
 def write_spec(path: Path) -> Path:
@@ -292,3 +293,35 @@ def test_export_refuses_failed_qa_run(tmp_path: Path):
     assert "QA" in export_result.output
     assert root_manifest["files"]["exports"] == {}
     assert not (run_dir / "exports" / "unity").exists()
+
+
+def _subject_spec(asset_id: str, subject: ScienceSubject) -> AssetSpec:
+    return AssetSpec(
+        id=asset_id,
+        subject=subject,
+        object=asset_id,
+        grade_band="6-8",
+        style=StyleMode.CONCEPTUAL,
+        learning_goal="x",
+        exports=[ExportProfile.WEB],
+        qa=QaThresholds(max_triangles=1000, max_glb_mb=10),
+    )
+
+
+def test_half_per_subject_takes_floor_half_in_order():
+    specs = [
+        _subject_spec("p1", ScienceSubject.PHYSICS),
+        _subject_spec("p2", ScienceSubject.PHYSICS),
+        _subject_spec("p3", ScienceSubject.PHYSICS),
+        _subject_spec("p4", ScienceSubject.PHYSICS),
+        _subject_spec("p5", ScienceSubject.PHYSICS),
+        _subject_spec("c1", ScienceSubject.CHEMISTRY),
+        _subject_spec("c2", ScienceSubject.CHEMISTRY),
+        _subject_spec("c3", ScienceSubject.CHEMISTRY),
+        _subject_spec("c4", ScienceSubject.CHEMISTRY),
+        _subject_spec("a1", ScienceSubject.ASTRONOMY),
+    ]
+
+    selected = [spec.id for spec in _half_per_subject(specs)]
+
+    assert selected == ["p1", "p2", "c1", "c2"]

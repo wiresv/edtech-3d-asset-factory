@@ -200,24 +200,49 @@ export default function Workshop() {
       ...p,
       prompt: seed.prompt,
       busy: "image",
-      status: { text: "Loading cached concept…", tone: "busy" },
+      status: {
+        text: seed.model_cached ? "Loading cached 3D model…" : "Loading cached concept…",
+        tone: "busy",
+      },
     }));
     const r = await api.getSeedImage(seed.id).catch(() => null);
-    if (r) {
+    if (!r) {
+      setS((p) => ({
+        ...p,
+        busy: "none",
+        status: { text: "Prompt loaded. Click Generate image.", tone: "idle" },
+      }));
+      return;
+    }
+    if (r.glb_url) {
       setS((p) => ({
         ...p,
         busy: "none",
         currentRunId: r.run_id,
         imageUrl: r.image_url + "?t=" + Date.now(),
         modelReady: false,
-        status: { text: "Cached concept ready. Build the 3D model to continue.", tone: "ok" },
+        status: { text: "Loading cached 3D model…", tone: "busy" },
       }));
+      try {
+        await viewerRef.current?.load(r.glb_url);
+        setS((p) => ({
+          ...p,
+          modelReady: true,
+          status: { text: "Cached model ready.", tone: "ok" },
+        }));
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setS((p) => ({ ...p, status: { text: `3D failed: ${msg}`, tone: "error" } }));
+      }
       return;
     }
     setS((p) => ({
       ...p,
       busy: "none",
-      status: { text: "Prompt loaded. Click Generate image.", tone: "idle" },
+      currentRunId: r.run_id,
+      imageUrl: r.image_url + "?t=" + Date.now(),
+      modelReady: false,
+      status: { text: "Cached concept ready. Build the 3D model to continue.", tone: "ok" },
     }));
   }
 
@@ -312,12 +337,12 @@ export default function Workshop() {
               className="mt-2.5 h-36 w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-3 text-[13.5px] leading-relaxed text-ink outline-none transition placeholder:text-muted-2 focus:border-accent/50 focus:ring-4 focus:ring-accent/10"
             />
 
-            <div className="mt-3 flex items-center gap-2">
+            <div className="mt-3 flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={onGenerateImage}
                 disabled={genDisabled}
-                className="group inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-ink px-3 text-[13px] font-medium text-white shadow-[0_1px_2px_0_rgb(16_17_26/0.06),inset_0_1px_0_0_rgb(255_255_255/0.1)] outline-none transition hover:bg-[#1c1c22] active:scale-[0.985] focus-visible:ring-2 focus-visible:ring-ink/25 disabled:cursor-wait disabled:opacity-60 disabled:active:scale-100"
+                className="group inline-flex h-9 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-ink px-3 text-[13px] font-medium text-white shadow-[0_1px_2px_0_rgb(16_17_26/0.06),inset_0_1px_0_0_rgb(255_255_255/0.1)] outline-none transition hover:bg-[#1c1c22] active:scale-[0.985] focus-visible:ring-2 focus-visible:ring-ink/25 disabled:cursor-wait disabled:opacity-60 disabled:active:scale-100"
               >
                 <span className="transition-transform duration-300 group-hover:rotate-[16deg] group-hover:scale-110">
                   {s.busy === "image" ? <Spinner /> : <Sparkles />}
@@ -334,7 +359,7 @@ export default function Workshop() {
                 onClick={onApprove}
                 disabled={approveDisabled}
                 className={
-                  "group inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg px-3 text-[13px] font-medium outline-none transition active:scale-[0.985] focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:active:scale-100 " +
+                  "group inline-flex h-9 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-[13px] font-medium outline-none transition active:scale-[0.985] focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:active:scale-100 " +
                   (approveDisabled
                     ? "border border-line bg-card text-muted-2"
                     : "bg-ink text-white shadow-[0_1px_2px_0_rgb(16_17_26/0.06),inset_0_1px_0_0_rgb(255_255_255/0.1)] ring-1 ring-accent/45 hover:bg-[#1c1c22]")
@@ -430,9 +455,26 @@ export default function Workshop() {
                               type="button"
                               onClick={() => onSeedClick(seed)}
                               disabled={genDisabled}
-                              title={seed.cached ? `${seed.label} — cached, instant` : seed.label}
-                              className="inline-flex items-center rounded-pill border border-line bg-card px-2.5 py-[5px] text-[11.5px] font-medium text-ink-2 transition-all hover:-translate-y-px hover:border-accent/40 hover:bg-surface hover:text-ink hover:shadow-card active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:border-line disabled:hover:bg-card disabled:hover:text-ink-2 disabled:hover:shadow-none"
+                              title={
+                                seed.model_cached
+                                  ? `${seed.label} — 3D ready, loads instantly`
+                                  : seed.cached
+                                    ? `${seed.label} — concept cached`
+                                    : seed.label
+                              }
+                              className={
+                                "inline-flex items-center rounded-pill border px-2.5 py-[5px] text-[11.5px] font-medium transition-all hover:-translate-y-px hover:shadow-card active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-none " +
+                                (seed.model_cached
+                                  ? "border-accent-amber/50 bg-accent-amber/10 text-ink-2 hover:border-accent-amber hover:bg-accent-amber/20 hover:text-ink disabled:hover:border-accent-amber/50 disabled:hover:bg-accent-amber/10 disabled:hover:text-ink-2"
+                                  : "border-line bg-card text-ink-2 hover:border-accent/40 hover:bg-surface hover:text-ink disabled:hover:border-line disabled:hover:bg-card disabled:hover:text-ink-2")
+                              }
                             >
+                              {seed.model_cached && (
+                                <span
+                                  className="mr-1.5 h-1.5 w-1.5 rounded-full bg-accent-amber"
+                                  aria-hidden
+                                />
+                              )}
                               {seed.label}
                             </button>
                           ))}

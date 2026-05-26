@@ -7,6 +7,7 @@ export interface InitialRun {
 export interface ImageResponse {
   run_id: string;
   image_url: string;
+  glb_url?: string;
 }
 
 export interface Run3dResponse {
@@ -20,6 +21,7 @@ export interface SeedPrompt {
   style: "conceptual" | "realistic";
   prompt: string;
   cached: boolean;
+  model_cached: boolean;
 }
 
 async function postJSON<T>(url: string, body: unknown): Promise<T> {

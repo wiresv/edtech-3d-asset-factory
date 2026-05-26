@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import http.server
 import json
+import shutil
 import threading
+from datetime import UTC, datetime
 from functools import partial
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
@@ -15,12 +17,12 @@ SPA_ROUTES = frozenset({"/", "/workshop", "/workshop.html"})
 
 def _list_seed_prompts() -> list[dict[str, object]]:
     from asset_factory.prompts import build_image_prompt
-    from asset_factory.specs import load_asset_spec
+    from asset_factory.specs import load_asset_spec, seed_spec_paths
 
     if not SEEDS_DIR.is_dir():
         return []
     items: list[dict[str, object]] = []
-    for path in sorted(SEEDS_DIR.glob("*.yaml")):
+    for path in seed_spec_paths(SEEDS_DIR):
         spec = load_asset_spec(path)
         label = spec.object[:1].upper() + spec.object[1:]
         items.append(
@@ -31,9 +33,35 @@ def _list_seed_prompts() -> list[dict[str, object]]:
                 "style": spec.style.value,
                 "prompt": build_image_prompt(spec),
                 "cached": (SEEDS_CACHE_DIR / f"{spec.id}.png").is_file(),
+                "model_cached": (SEEDS_CACHE_DIR / f"{spec.id}.glb").is_file(),
             }
         )
     return items
+
+
+def _materialize_seed(runs_root: Path, seed_id: str) -> dict:
+    """Copy a seed's cached concept image (and cached GLB, if any) into a fresh workshop run."""
+    if not seed_id:
+        raise FileNotFoundError("missing id")
+    cache_png = SEEDS_CACHE_DIR / f"{seed_id}.png"
+    if not cache_png.is_file():
+        raise FileNotFoundError(f"no cached image for {seed_id}")
+    run_id = datetime.now(tz=UTC).strftime("%Y%m%dT%H%M%S_%fZ")
+    run_dir = runs_root / "workshop" / run_id
+    image_dir = run_dir / "image"
+    image_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(cache_png, image_dir / "concept.png")
+    cache_prompt = SEEDS_CACHE_DIR / f"{seed_id}.txt"
+    if cache_prompt.is_file():
+        shutil.copy2(cache_prompt, image_dir / "prompt.txt")
+    result = {"run_id": run_id, "image_url": f"/workshop/{run_id}/image/concept.png"}
+    cache_glb = SEEDS_CACHE_DIR / f"{seed_id}.glb"
+    if cache_glb.is_file():
+        trellis_dir = run_dir / "trellis"
+        trellis_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(cache_glb, trellis_dir / "raw.glb")
+        result["glb_url"] = f"/workshop/{run_id}/trellis/raw.glb"
+    return result
 
 
 class ReviewHTTPServer(http.server.ThreadingHTTPServer):
@@ -108,7 +136,8 @@ class _SPAHandler(http.server.SimpleHTTPRequestHandler):
 
         if path == "/api/seed-image":
             try:
-                self._write_json(200, self._materialize_seed(parse_qs(url.query)))
+                seed_id = (parse_qs(url.query).get("id") or [""])[0]
+                self._write_json(200, _materialize_seed(self.runs_root, seed_id))
             except FileNotFoundError as exc:
                 self._write_json(404, {"error": str(exc)})
             except Exception as exc:  # noqa: BLE001
@@ -182,26 +211,6 @@ class _SPAHandler(http.server.SimpleHTTPRequestHandler):
             # Client canceled (aborted the request): stop the GPU build.
             _terminate(holder.get("proc"))
             return
-
-    def _materialize_seed(self, query: dict[str, list[str]]) -> dict:
-        from datetime import UTC, datetime
-        import shutil
-
-        seed_id = (query.get("id") or [""])[0]
-        if not seed_id:
-            raise FileNotFoundError("missing id")
-        cache_png = SEEDS_CACHE_DIR / f"{seed_id}.png"
-        cache_prompt = SEEDS_CACHE_DIR / f"{seed_id}.txt"
-        if not cache_png.is_file():
-            raise FileNotFoundError(f"no cached image for {seed_id}")
-        run_id = datetime.now(tz=UTC).strftime("%Y%m%dT%H%M%S_%fZ")
-        run_dir = self.runs_root / "workshop" / run_id
-        image_dir = run_dir / "image"
-        image_dir.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(cache_png, image_dir / "concept.png")
-        if cache_prompt.is_file():
-            shutil.copy2(cache_prompt, image_dir / "prompt.txt")
-        return {"run_id": run_id, "image_url": f"/workshop/{run_id}/image/concept.png"}
 
     def _gen_image(self, prompt: str) -> dict:
         from datetime import UTC, datetime
