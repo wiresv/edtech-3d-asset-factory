@@ -79,6 +79,10 @@ export default {
           from: { strokeDashoffset: "1" },
           to: { strokeDashoffset: "0" },
         },
+        bounceSoft: {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(3px)" },
+        },
       },
       animation: {
         fadeIn: "fadeIn 0.35s ease both",
@@ -90,6 +94,7 @@ export default {
         breathe: "breathe 2.4s ease-in-out infinite",
         spinSlow: "spinSlow 9s linear infinite",
         drawIn: "drawIn 0.45s ease-out forwards",
+        bounceSoft: "bounceSoft 1.3s ease-in-out infinite",
       },
     },
   },

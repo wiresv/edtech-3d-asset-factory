@@ -1,4 +1,11 @@
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import {
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import Card from "../components/Card";
 import StatusLine, { type StatusTone } from "../components/StatusLine";
 import ModelViewer, { type ModelViewerHandle } from "../components/ModelViewer";
@@ -11,6 +18,22 @@ const SUBJECT_DOT: Record<SeedPrompt["subject"], string> = {
   earth_science: "bg-accent-amber",
   astronomy: "bg-accent-rose",
 };
+
+const SUBJECT_LABEL: Record<SeedPrompt["subject"], string> = {
+  biology: "Biology",
+  chemistry: "Chemistry",
+  physics: "Physics",
+  earth_science: "Earth Science",
+  astronomy: "Astronomy",
+};
+
+const SUBJECT_ORDER: SeedPrompt["subject"][] = [
+  "biology",
+  "chemistry",
+  "physics",
+  "earth_science",
+  "astronomy",
+];
 
 type StepState = "pending" | "active" | "done";
 
@@ -43,6 +66,55 @@ export default function Workshop() {
   const [conceptOpen, setConceptOpen] = useState(false);
   const viewerRef = useRef<ModelViewerHandle>(null);
   const buildAbortRef = useRef<AbortController | null>(null);
+  const examplesRef = useRef<HTMLDivElement>(null);
+  const [moreAbove, setMoreAbove] = useState(false);
+  const [moreBelow, setMoreBelow] = useState(false);
+  const [thumb, setThumb] = useState({ h: 0, top: 0, show: false });
+
+  const updateScrollCue = useCallback(() => {
+    const el = examplesRef.current;
+    if (!el) return;
+    const { scrollTop, scrollHeight, clientHeight } = el;
+    setMoreAbove(scrollTop > 4);
+    setMoreBelow(scrollTop + clientHeight < scrollHeight - 4);
+    if (scrollHeight <= clientHeight + 1) {
+      setThumb({ h: 0, top: 0, show: false });
+      return;
+    }
+    const h = Math.max((clientHeight / scrollHeight) * clientHeight, 28);
+    const maxTop = clientHeight - h;
+    const maxScroll = scrollHeight - clientHeight;
+    setThumb({ h, top: maxScroll > 0 ? (scrollTop / maxScroll) * maxTop : 0, show: true });
+  }, []);
+
+  function onThumbDown(e: ReactPointerEvent<HTMLDivElement>) {
+    e.preventDefault();
+    const el = examplesRef.current;
+    if (!el) return;
+    const startY = e.clientY;
+    const startScroll = el.scrollTop;
+    const maxScroll = el.scrollHeight - el.clientHeight;
+    const thumbH = Math.max((el.clientHeight / el.scrollHeight) * el.clientHeight, 28);
+    const maxTop = el.clientHeight - thumbH;
+    const onMove = (ev: PointerEvent) => {
+      el.scrollTop = startScroll + (maxTop > 0 ? ((ev.clientY - startY) / maxTop) * maxScroll : 0);
+    };
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }
+
+  useEffect(() => {
+    const el = examplesRef.current;
+    if (!el) return;
+    updateScrollCue();
+    const ro = new ResizeObserver(updateScrollCue);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [seeds, updateScrollCue]);
 
   useEffect(() => {
     if (s.busy === "none") {
@@ -331,25 +403,78 @@ export default function Workshop() {
                   </span>
                   <span className="font-mono text-[10px] text-muted-2">{seeds.length} ready</span>
                 </div>
-                <div className="-mr-1 flex min-h-0 flex-1 flex-wrap content-start gap-1.5 overflow-y-auto pr-1 scrollbar-thin">
-                  {seeds.map((seed) => (
+                <div className="relative flex min-h-0 flex-1 flex-col">
+                  <div
+                    ref={examplesRef}
+                    onScroll={updateScrollCue}
+                    className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto pr-2.5 scrollbar-none"
+                  >
+                  {SUBJECT_ORDER.map((subject) => {
+                    const items = seeds.filter((seed) => seed.subject === subject);
+                    if (items.length === 0) return null;
+                    return (
+                      <div key={subject}>
+                        <div className="mb-1.5 flex items-center gap-1.5">
+                          <span className={"h-1.5 w-1.5 rounded-full " + SUBJECT_DOT[subject]} />
+                          <span className="text-[9.5px] font-semibold uppercase tracking-[0.09em] text-muted-2">
+                            {SUBJECT_LABEL[subject]}
+                          </span>
+                          <span className="font-mono text-[9.5px] text-muted-2/70">
+                            {items.length}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {items.map((seed) => (
+                            <button
+                              key={seed.id}
+                              type="button"
+                              onClick={() => onSeedClick(seed)}
+                              disabled={genDisabled}
+                              title={seed.cached ? `${seed.label} — cached, instant` : seed.label}
+                              className="inline-flex items-center rounded-pill border border-line bg-card px-2.5 py-[5px] text-[11.5px] font-medium text-ink-2 transition-all hover:-translate-y-px hover:border-accent/40 hover:bg-surface hover:text-ink hover:shadow-card active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:border-line disabled:hover:bg-card disabled:hover:text-ink-2 disabled:hover:shadow-none"
+                            >
+                              {seed.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  </div>
+                  <div
+                    className={
+                      "pointer-events-none absolute left-0 right-3 top-0 h-5 bg-gradient-to-b from-card to-transparent transition-opacity duration-200 " +
+                      (moreAbove ? "opacity-100" : "opacity-0")
+                    }
+                  />
+                  <div
+                    className={
+                      "pointer-events-none absolute left-0 right-3 bottom-0 h-12 bg-gradient-to-t from-card via-card/85 to-transparent transition-opacity duration-200 " +
+                      (moreBelow ? "opacity-100" : "opacity-0")
+                    }
+                  />
+                  {moreBelow && (
                     <button
-                      key={seed.id}
                       type="button"
-                      onClick={() => onSeedClick(seed)}
-                      disabled={genDisabled}
-                      title={seed.cached ? `${seed.label} — cached, instant` : seed.label}
-                      className="group inline-flex items-center gap-1.5 rounded-pill border border-line bg-card px-2.5 py-[5px] text-[11.5px] font-medium text-ink-2 transition-all hover:-translate-y-px hover:border-accent/40 hover:bg-surface hover:text-ink hover:shadow-card active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:border-line disabled:hover:bg-card disabled:hover:text-ink-2 disabled:hover:shadow-none"
+                      onClick={() =>
+                        examplesRef.current?.scrollBy({
+                          top: examplesRef.current.clientHeight * 0.8,
+                          behavior: "smooth",
+                        })
+                      }
+                      className="absolute bottom-1.5 left-1/2 z-10 inline-flex -translate-x-1/2 animate-fadeIn items-center gap-1 rounded-pill border border-line bg-card px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.06em] text-muted shadow-card transition hover:-translate-y-px hover:border-accent/40 hover:text-ink"
                     >
-                      <span
-                        className={
-                          "h-1.5 w-1.5 rounded-full transition-transform group-hover:scale-125 " +
-                          SUBJECT_DOT[seed.subject]
-                        }
-                      />
-                      {seed.label}
+                      More
+                      <ChevronDown className="animate-bounceSoft" />
                     </button>
-                  ))}
+                  )}
+                  {thumb.show && (
+                    <div
+                      onPointerDown={onThumbDown}
+                      className="absolute right-0 z-20 w-1.5 cursor-grab rounded-full bg-muted-2/50 transition-colors hover:bg-muted-2 active:cursor-grabbing active:bg-muted-2"
+                      style={{ height: thumb.h, top: thumb.top }}
+                    />
+                  )}
                 </div>
               </div>
             )}
@@ -592,6 +717,20 @@ function CancelIcon() {
         stroke="currentColor"
         strokeWidth="2.4"
         strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function ChevronDown({ className = "" }: { className?: string }) {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden className={className}>
+      <path
+        d="M6 9l6 6 6-6"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   );
